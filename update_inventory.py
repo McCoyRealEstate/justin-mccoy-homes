@@ -169,10 +169,31 @@ def parse_inventory(html):
         raise RuntimeError('Incomplete report: ' + '; '.join(errors[:6]) + f' ({len(errors)} errors)')
     if len(result) < 50:
         raise RuntimeError(f'Only {len(result)} listings parsed')
-    keys = [(norm(x['collection']), x['lot']) for x in result]
-    if len(set(keys)) != len(keys):
-        raise RuntimeError('Duplicate collection/lot in source')
-    return result, len(tables)
+    # Homesite numbers are unique throughout the Orlando Division. Some HTML
+    # reports can repeat the same listing in multiple rendered sections. Drop
+    # only byte-equivalent parsed records; conflicting records must fail closed.
+    unique = {}
+    duplicate_rows = 0
+    for item in result:
+        key = item['lot']
+        if key not in unique:
+            unique[key] = item
+            continue
+        first = unique[key]
+        if first == item:
+            duplicate_rows += 1
+            print(f'REPEATED SOURCE ROW (identical): lot {key}, '
+                  f'{item["a"]}, {item["collection"]}; counted once', flush=True)
+        else:
+            raise RuntimeError(
+                f'Conflicting source rows for unique Orlando homesite {key}: '
+                f'first={json.dumps(first, ensure_ascii=False, sort_keys=True)}; '
+                f'second={json.dumps(item, ensure_ascii=False, sort_keys=True)}. '
+                'No changes published; inspect the source/report parser.'
+            )
+    if duplicate_rows:
+        print(f'Deduplicated {duplicate_rows} identical repeated report rows', flush=True)
+    return list(unique.values()), len(tables)
 
 
 def collection_slug(path):
