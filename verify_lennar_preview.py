@@ -64,14 +64,40 @@ try:
     missing=baseline_report.get("result",{}).get("missing_existing_retained",[])
     report["checks"]["missing_existing_lots"]=missing
     for lot in missing:
-        if lot not in bylot or lot not in lu:
-            report["errors"].append("Missing retained lot or listing link: "+lot)
+        if lot not in bylot:
+            report["errors"].append("Retained lot missing from preview: "+lot)
             continue
-        item=verify_lennar_listing(lot,lu[lot])
+        if lot in lu:
+            item=verify_lennar_listing(lot,lu[lot])
+        else:
+            # A Coming Soon home may have no published direct listing URL.
+            # Check its OWN community page instead of treating it as an importer failure.
+            home=bylot[lot]
+            community=next((c for c in data["c"] if c["id"]==home["cm"]),None)
+            item={"lot":lot,"classification":"no_direct_listing_url","direct_listing_available":False}
+            if community and community.get("url"):
+                url=urljoin(BASE,community["url"])
+                item["community_url"]=url
+                try:
+                    r=s.get(url,timeout=35)
+                    item["http_status"]=r.status_code
+                    r.raise_for_status()
+                    tag=BeautifulSoup(r.text,"html.parser").find("script",id="__NEXT_DATA__")
+                    if not tag or not tag.string:raise ValueError("No NEXT_DATA")
+                    st=json.loads(tag.string).get("props",{}).get("pageProps",{}).get("initialApolloState",{})
+                    matches=[h for h in objects(st,"HomesiteType") if str(h.get("lotid","")).lower()==lot]
+                    item["matching_homesite_objects"]=len(matches)
+                    item["statuses"]=sorted({str(h.get("status")) for h in matches})
+                    item["classification"]="present_on_community_page" if matches else "absent_from_community_page"
+                except Exception as exc:
+                    item["classification"]="community_check_error"
+                    item["error"]=str(exc)[:180]
+            else:
+                item["classification"]="community_url_missing"
         item["address"]=bylot[lot].get("a")
         item["community"]=bylot[lot].get("cm")
         report["listings"].append(item)
-        if item["classification"]!="listing_present":
+        if item["classification"] not in ("listing_present","present_on_community_page"):
             report["warnings"].append(lot+" requires human review: "+item["classification"])
     soon=[h for h in homes if h.get("s") in ("S","C")]
     missing_mask=[h["lot"] for h in soon if h.get("np")!=1]
