@@ -37,16 +37,16 @@ def canonical(url):
     p=urllib.parse.urlparse(urllib.parse.urljoin(BASE,url)).path
     return p.rstrip('/').lower()
 
-def lot(h):return str(h.get('lotid') or '').strip().lower()
+def lot(h):return str(h.get('lotid') or h.get('lot') or '').strip().lower()
 
 def image_url(h):
     image=h.get('elevationImage') or {}
     return image.get('image',{}).get('url','') if isinstance(image,dict) and isinstance(image.get('image'),dict) else ''
 
 try:
-    state,meta=read_page(INV);homes=[v for _,v in objects(state,'HomesiteType')]
+    inventory_state,meta=read_page(INV);homes=[v for _,v in objects(inventory_state,'HomesiteType')]
     available=[h for h in homes if h.get('status') in ('MOVE_IN_READY','UNDER_CONSTRUCTION')]
-    report['inventory']={**meta,'homesite_objects':len(homes),'available':len(available),'statuses':dict(collections.Counter(h.get('status') for h in homes)),'with_full_lot_id':sum(len(lot(h))>4 for h in available),'with_direct_url':sum(bool(h.get('url')) for h in available),'with_photo_url':sum(bool(image_url(h)) and 'comingsoon.jpg' not in image_url(h).lower() for h in available),'plan_collection_resolved':sum(bool(collection_of(state,h)[0]) for h in available)}
+    report['inventory']={**meta,'homesite_objects':len(homes),'available':len(available),'statuses':dict(collections.Counter(h.get('status') for h in homes)),'with_full_lot_id':sum(len(lot(h))>4 for h in available),'with_direct_url':sum(bool(h.get('url')) for h in available),'with_photo_url':sum(bool(image_url(h)) and 'comingsoon.jpg' not in image_url(h).lower() for h in available),'plan_collection_resolved':sum(bool(collection_of(inventory_state,h)[0]) for h in available)}
     if len(available)<50:raise ValueError('Inventory returned fewer than 50 available homes')
 except Exception as e:
     report['errors'].append({'stage':'inventory','message':str(e)});available=[]
@@ -97,12 +97,12 @@ unchecked=[{'lot':lot(h),'address':h.get('a'),'community':h.get('cm')} for h in 
 new_soon=[h for h in collected_soon if h['lot'] and h['lot'] not in {lot(x) for x in existing}]
 missing_fee=[];mismatched=[]
 for h in available:
-    col,_=collection_of(state,h);key=canonical(col)
+    col,_=collection_of(inventory_state,h);key=canonical(col)
     fee=fees.get(key)
     if not fee:missing_fee.append({'lot':lot(h),'address':h.get('address'),'collection':col})
-    elif h.get('communityName') and not key: mismatched.append(lot(h))
-report['summary']={'communities_checked':len(report['communities']),'communities_loaded':sum(x['loaded'] for x in report['communities']),'coming_soon_found_on_community_pages':len(collected_soon),'distinct_coming_soon_lots':len({x['lot'] for x in collected_soon if x['lot']}),'new_coming_soon_candidates':new_soon,'coming_soon_removal_candidates_NOT_APPLIED':possible_removed,'coming_soon_unchecked_NOT_APPLIED':unchecked,'collections_with_fee_records':len(fees),'available_homes_without_matched_collection_fee':missing_fee,'photo_urls_present':report.get('inventory',{}).get('with_photo_url',0),'photo_download_tested':False,'publish_performed':False}
-report['ready_for_next_phase']=not report['errors'] and len(available)>=50 and sum(x['loaded'] for x in report['communities'])==len(communities)
+    elif fee['source_community'] not in key.split('/'): mismatched.append(lot(h))
+report['summary']={'communities_checked':len(report['communities']),'communities_loaded':sum(x['loaded'] for x in report['communities']),'coming_soon_found_on_community_pages':len(collected_soon),'distinct_coming_soon_lots':len({x['lot'] for x in collected_soon if x['lot']}),'new_coming_soon_candidates':new_soon,'coming_soon_removal_candidates_NOT_APPLIED':possible_removed,'coming_soon_unchecked_NOT_APPLIED':unchecked,'collections_with_fee_records':len(fees),'available_homes_without_matched_collection_fee':missing_fee,'collection_community_mismatches':mismatched,'photo_urls_present':report.get('inventory',{}).get('with_photo_url',0),'photo_download_tested':False,'publish_performed':False}
+report['ready_for_next_phase']=not report['errors'] and len(available)>=50 and sum(x['loaded'] for x in report['communities'])==len(communities) and not mismatched and not possible_removed and not new_soon
 Path('lennar_full_audit.json').write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding='utf-8')
 print(json.dumps({'inventory':report['inventory'],'baseline':report.get('baseline'),'summary':{k:(len(v) if isinstance(v,list) else v) for k,v in report['summary'].items()},'errors':report['errors'],'warnings':report['warnings'],'ready_for_next_phase':report['ready_for_next_phase']},indent=2))
 print('Full details saved to lennar_full_audit.json (download from workflow artifacts).')
