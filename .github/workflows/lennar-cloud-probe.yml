@@ -1,0 +1,25 @@
+name: Lennar Cloud Import - READ ONLY Test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install requests beautifulsoup4
+      - name: Test Lennar structured data (never publish)
+        run: python probe_lennar.py
+      - name: Save diagnostic report even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lennar-read-only-probe
+          path: lennar_probe_report.json
+          if-no-files-found: warn
