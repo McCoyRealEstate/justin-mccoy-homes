@@ -65,18 +65,16 @@ def main():
     print('Contains Homesite:', 'homesite' in response.text.lower(), flush=True)
     print('Contains Meadow Pointe:', 'meadow pointe' in response.text.lower(), flush=True)
     print('Page title:', soup.title.get_text(' ', strip=True)[:120] if soup.title else '(none)', flush=True)
-        soup = BeautifulSoup(response.text, 'html.parser')
-    tables = soup.find_all('table')
 
-    for i, table in enumerate(tables[:3]):
-        print(f'TABLE {i + 1}:')
+    print('TABLE STRUCTURE SAMPLES:', flush=True)
+    for i, table in enumerate(soup.find_all('table')[:4], start=1):
+        print(f'TABLE {i}:', flush=True)
         for row in table.find_all('tr')[:3]:
             cells = row.find_all(['th', 'td'])
-            print([c.get_text(' ', strip=True)[:100] for c in cells])
-
-    print('SAMPLE HEADINGS:')
-    for heading in soup.find_all(['h1', 'h2', 'h3'])[:10]:
-        print(heading.get_text(' ', strip=True)[:150])
+            print(repr([cell.get_text(' ', strip=True)[:100] for cell in cells]), flush=True)
+    print('HEADING SAMPLES:', flush=True)
+    for heading in soup.find_all(['h1', 'h2', 'h3', 'h4'])[:12]:
+        print(repr(heading.get_text(' ', strip=True)[:150]), flush=True)
 
     listings = parse_report(response.text)
     print('Parsed listings:', len(listings), flush=True)
