@@ -65,6 +65,18 @@ def main():
     print('Contains Homesite:', 'homesite' in response.text.lower(), flush=True)
     print('Contains Meadow Pointe:', 'meadow pointe' in response.text.lower(), flush=True)
     print('Page title:', soup.title.get_text(' ', strip=True)[:120] if soup.title else '(none)', flush=True)
+        soup = BeautifulSoup(response.text, 'html.parser')
+    tables = soup.find_all('table')
+
+    for i, table in enumerate(tables[:3]):
+        print(f'TABLE {i + 1}:')
+        for row in table.find_all('tr')[:3]:
+            cells = row.find_all(['th', 'td'])
+            print([c.get_text(' ', strip=True)[:100] for c in cells])
+
+    print('SAMPLE HEADINGS:')
+    for heading in soup.find_all(['h1', 'h2', 'h3'])[:10]:
+        print(heading.get_text(' ', strip=True)[:150])
 
     listings = parse_report(response.text)
     print('Parsed listings:', len(listings), flush=True)
