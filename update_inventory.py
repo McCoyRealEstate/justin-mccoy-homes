@@ -52,17 +52,18 @@ def main():
     response = requests.get(URL, timeout=40, headers={'User-Agent': 'Mozilla/5.0 (compatible; inventory-check/1.0)'})
     response.raise_for_status()
 
-print("HTTP status:", response.status_code)
-print("Final URL:", response.url)
-print("Content type:", response.headers.get("Content-Type"))
-print("Response length:", len(response.text))
-print("HTML tables:", len(BeautifulSoup(response.text, "html.parser").find_all("table")))
-print("Contains Homesite:", "homesite" in response.text.lower())
-print("Contains Meadow Pointe:", "meadow pointe" in response.text.lower())
+    print('HTTP status:', response.status_code)
+    print('Final URL:', response.url)
+    print('Content type:', response.headers.get('Content-Type'))
+    print('Response length:', len(response.text))
+    print('HTML tables:', len(BeautifulSoup(response.text, 'html.parser').find_all('table')))
+    print('Contains Homesite:', 'homesite' in response.text.lower())
+    print('Contains Meadow Pointe:', 'meadow pointe' in response.text.lower())
 
-listings = parse_report(response.text)
+    listings = parse_report(response.text)
     if len(listings) < MIN_ROWS:
         raise RuntimeError(f'Parsed only {len(listings)} rows; refusing to replace inventory')
+    
     unique = {(x['community'].casefold(), x['address'].casefold(), x['lot']) for x in listings}
     if len(unique) != len(listings):
         raise RuntimeError('Duplicate community/address/homesite combinations; refusing to publish')
