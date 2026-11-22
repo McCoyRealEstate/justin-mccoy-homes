@@ -1,0 +1,37 @@
+name: Lennar Full HTML Preview - READ ONLY
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install requests beautifulsoup4 pillow
+      - name: Build unpublished HTML preview
+        run: python build_lennar_preview.py
+      - name: Validate JavaScript syntax
+        if: success()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          html=Path('lennar_preview/index-preview.html').read_text()
+          soup=BeautifulSoup(html,'html.parser')
+          scripts=[x.get_text() for x in soup.find_all('script') if not x.get('src') and x.get('type') not in ('application/json','application/ld+json')]
+          Path('lennar_preview/inline-scripts.js').write_text('\n;\n'.join(scripts))
+          PY
+          node --check lennar_preview/inline-scripts.js
+      - name: Upload preview and audit report (never publish)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lennar-full-html-preview
+          path: lennar_preview/
+          if-no-files-found: warn
