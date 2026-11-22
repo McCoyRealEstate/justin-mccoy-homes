@@ -1,0 +1,43 @@
+name: Phase 8 Actions Maintenance Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lennar-phase8-auto-refresh.yml'
+      - '.github/workflows/phase8-actions-maintenance-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout maintenance branch
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate inventory scripts without running or publishing
+        run: |
+          python -m py_compile build_lennar_preview.py verify_lennar_preview.py lennar_phase6_dry_run.py lennar_phase8_finalize.py
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('.github/workflows/lennar-phase8-auto-refresh.yml').read_text()
+          for name in ('checkout', 'setup-python', 'upload-artifact'):
+              assert f'actions/{name}@v6' in s, name
+          print('Phase 8 action versions verified')
+          PY
+      - name: Test backup artifact upload
+        run: |
+          mkdir -p maintenance-test
+          echo "Validation only; no inventory publish" > maintenance-test/result.txt
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase8-actions-maintenance-test
+          path: maintenance-test/result.txt
+          if-no-files-found: error
