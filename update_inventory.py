@@ -169,30 +169,23 @@ def parse_inventory(html):
         raise RuntimeError('Incomplete report: ' + '; '.join(errors[:6]) + f' ({len(errors)} errors)')
     if len(result) < 50:
         raise RuntimeError(f'Only {len(result)} listings parsed')
-    # Homesite numbers are unique throughout the Orlando Division. Some HTML
-    # reports can repeat the same listing in multiple rendered sections. Drop
-    # only byte-equivalent parsed records; conflicting records must fail closed.
+    # Printable report shows only the last four digits of the full Lennar lot ID.
+    # Deduplicate by community/collection/address/short lot, NOT short lot alone.
     unique = {}
-    duplicate_rows = 0
     for item in result:
-        key = item['lot']
-        if key not in unique:
-            unique[key] = item
+        key = (norm(item['collection']), norm(item['city']), address_key(item['a']), item['lot'])
+        if key in unique:
+            if unique[key] != item:
+                raise RuntimeError(f'Conflicting source rows for {key}: {unique[key]} vs {item}')
             continue
-        first = unique[key]
-        if first == item:
-            duplicate_rows += 1
-            print(f'REPEATED SOURCE ROW (identical): lot {key}, '
-                  f'{item["a"]}, {item["collection"]}; counted once', flush=True)
-        else:
-            raise RuntimeError(
-                f'Conflicting source rows for unique Orlando homesite {key}: '
-                f'first={json.dumps(first, ensure_ascii=False, sort_keys=True)}; '
-                f'second={json.dumps(item, ensure_ascii=False, sort_keys=True)}. '
-                'No changes published; inspect the source/report parser.'
-            )
-    if duplicate_rows:
-        print(f'Deduplicated {duplicate_rows} identical repeated report rows', flush=True)
+        unique[key] = item
+    # Same community + short lot with different addresses is unsafe.
+    by_short = {}
+    for item in unique.values():
+        k = (norm(item['collection']), norm(item['city']), item['lot'])
+        if k in by_short and address_key(by_short[k]['a']) != address_key(item['a']):
+            raise RuntimeError(f'Conflicting addresses for {k}: {by_short[k]["a"]} vs {item["a"]}')
+        by_short[k] = item
     return list(unique.values()), len(tables)
 
 
@@ -206,7 +199,7 @@ def page_indicates_sold(session, path, lot):
         url = urljoin(BASE, path)
         response = fetch(session, url)
         if response.url.rstrip('/').split('/')[-1].casefold() != lot:
-            return True, 'redirected away from homesite'
+            return None, 'redirected; manual verification required'
         soup = BeautifulSoup(response.text, 'html.parser')
         text = norm(soup.get_text(' ', strip=True))
         if re.search(r'\b(sold|no longer available)\b', text) and lot not in text:
@@ -252,76 +245,93 @@ def sync(html, laptop, session, *, allow_deletions=False):
         items, table_count = parse_inventory(response.text)
     if len(items) < max(50, (old_count - sum(h['s'] in ('S','C') for h in homes)) / 2):
         raise RuntimeError('Inventory is less than half the existing available-home count')
-    by_lot = {lot_key(h.get('lot')): h for h in homes if lot_key(h.get('lot'))}
-    by_addr = {address_key(h.get('a')): h for h in homes if h.get('a')}
     by_community = {c['id']: c for c in communities}
     added = changed = removed = retained = 0
-    missing_links = []
-    skipped_new = []
-    seen = set()
+    missing_links, skipped_new, ambiguous = [], [], []
+    seen = set()  # FULL Lennar lot IDs, never short report numbers
+    matched_report = set()
+
+    def short_lot(value):
+        return lot_key(value)[-4:].zfill(4)
+
+    def same_city(x, y):
+        def canonical(v):
+            v = norm(v).replace('saint ', 'st ').replace('st. ', 'st ')
+            return re.sub(r'[^a-z0-9]', '', v)
+        return canonical(x) == canonical(y)
+
+    def community_for(item):
+        base_name = re.split(r'\s*[-–—]\s*', item['collection'], maxsplit=1)[0].strip()
+        matches = [c for c in communities if norm(c['n']) == norm(base_name) and same_city(c['c'], item['city'])]
+        if len(matches) != 1:
+            return None
+        return matches[0]
+
     for item in items:
-        key = item['lot']
-        home = by_lot.get(key) or by_addr.get(address_key(item['a']))
-        if home is not None and (lot_key(home.get('lot')) not in ('', key) and address_key(home.get('a')) != address_key(item['a'])):
-            raise RuntimeError(f'Lot/address mismatch: {item["a"]}')
+        community = community_for(item)
+        # Existing home identity is full lot ID; address+community is the strongest
+        # available match to a report that only contains the four-digit suffix.
+        candidates = [h for h in homes if community and h.get('cm') == community['id']
+                      and address_key(h.get('a')) == address_key(item['a'])]
+        if not candidates and community:
+            candidates = [h for h in homes if h.get('cm') == community['id']
+                          and short_lot(h.get('lot')) == short_lot(item['lot'])]
+        if len(candidates) > 1:
+            ambiguous.append({'source': item['a'], 'lot': item['lot'], 'reason': 'multiple existing homes match'})
+            continue
+        home = candidates[0] if candidates else None
         if home is not None:
-            community_id = home['cm']
-        else:
-            # Match community name (without collection) and city, never silently merge different cities.
-            base_name = re.split(r'\s*[-–—]\s*', item['collection'], maxsplit=1)[0].strip()
-            matches = [c for c in communities if norm(c['n']) == norm(base_name) and norm(c['c']) == norm(item['city'])]
-            if len(matches) > 1:
-                raise RuntimeError(f'Ambiguous community: {base_name}, {item["city"]}')
-            if matches:
-                community = matches[0]
-            else:
-                stem = re.sub(r'[^a-z0-9]+', '-', base_name.casefold()).strip('-')
-                cid = stem
-                n = 2
-                while cid in by_community:
-                    cid = f'{stem}-{n}'
-                    n += 1
-                community = dict(id=cid, n=base_name, c=item['city'], url=BASE, hoa=None, tax=None)
-                communities.append(community)
-                by_community[cid] = community
-            community_id = community['id']
-        if key in seen:
-            raise RuntimeError(f'Duplicate lot {key}')
-        seen.add(key)
-        if home is None:
-            # A print report may not contain direct homesite links. Do not invent one.
-            # Skip just this new home and report it; continue auditing known homes.
-            if not item['path']:
-                skipped_new.append(dict(lot=key, address=item['a'], collection=item['collection'],
-                                        reason='No verified direct homesite URL in inventory source'))
+            full_key = lot_key(home.get('lot'))
+            if short_lot(full_key) != short_lot(item['lot']):
+                ambiguous.append({'source': item['a'], 'lot': item['lot'], 'reason': 'address matched but lot suffix differs'})
                 continue
-            home = dict(a=item['a'], s=item['s'], p=item['p'], w=item['w'], bd=item['bd'], ba=item['ba'],
-                        sq=item['sq'], g=0, pl=item['pl'], cm=community_id, lot=key, miss=0)
-            sibling = next((h for h in homes if h['cm'] == community_id and norm(h.get('pl')) == norm(item['pl'])), None)
-            if sibling:
-                home['g'] = sibling.get('g', 0)
-            collection = collection_slug(item['path'])
-            fee_sibling = next((h for h in homes if h['cm'] == community_id and collection_slug(lu.get(lot_key(h.get('lot')), '')) == collection), None)
-            if fee_sibling:
-                for field in ('hoa', 'tax'):
-                    if field in fee_sibling:
-                        home[field] = fee_sibling[field]
-            homes.append(home)
-            added += 1
-        else:
+            if full_key in seen:
+                raise RuntimeError(f'Existing full lot matched twice: {full_key}')
+            seen.add(full_key)
             old = {k: home.get(k) for k in ('p','w','s','bd','ba','sq','pl','miss')}
-            home.update({k:item[k] for k in ('p','w','s','bd','ba','sq','pl')})
+            home.update({k: item[k] for k in ('p','w','s','bd','ba','sq','pl')})
             home['miss'] = 0
-            if any(home.get(k) != v for k,v in old.items()):
+            if any(home.get(k) != v for k, v in old.items()):
                 changed += 1
-        if item['path']:
-            lu[key] = item['path']
-        elif key not in lu:
-            # Existing homes can be refreshed from their matched lot/address even if
-            # the original Claude snapshot has no LU link for that homesite.
-            # Leave LU untouched and surface the missing link in the audit.
-            missing_links.append(dict(lot=key, address=item['a'],
-                                      reason='Existing home has no verified direct homesite URL'))
+            # A print-page short-lot link is not proof of a full homesite URL.
+            if item['path'] and item['path'].rstrip('/').split('/')[-1].casefold() == full_key:
+                lu[full_key] = item['path']
+            elif full_key not in lu:
+                missing_links.append({'lot': full_key, 'address': item['a']})
+            matched_report.add((norm(item['collection']), address_key(item['a'])))
+            continue
+        # A new report row cannot safely be added without the full Lennar lot ID
+        # and a verified matching direct URL. Preserve and report it instead.
+        verified_path = item['path']
+        full_id = verified_path.rstrip('/').split('/')[-1].casefold() if verified_path else ''
+        if not (community and verified_path and len(full_id) > 4
+                and full_id.endswith(short_lot(item['lot'])) and full_id not in lu):
+            skipped_new.append({'lot': item['lot'], 'address': item['a'],
+                                'collection': item['collection'],
+                                'reason': 'full Lennar lot ID / direct listing link not verified'})
+            continue
+        home = dict(a=item['a'], s=item['s'], p=item['p'], w=item['w'], bd=item['bd'],
+                    ba=item['ba'], sq=item['sq'], g=0, pl=item['pl'], cm=community['id'],
+                    lot=full_id, miss=0)
+        sibling = next((h for h in homes if h['cm'] == community['id'] and norm(h.get('pl')) == norm(item['pl'])), None)
+        if sibling:
+            home['g'] = sibling.get('g', 0)
+        collection = collection_slug(verified_path)
+        fee_sibling = next((h for h in homes if h['cm'] == community['id']
+                            and collection_slug(lu.get(lot_key(h.get('lot')), '')) == collection), None)
+        if fee_sibling:
+            for field in ('hoa', 'tax'):
+                if field in fee_sibling:
+                    home[field] = fee_sibling[field]
+        homes.append(home)
+        lu[full_id] = verified_path
+        seen.add(full_id)
+        added += 1
+
+    # Never treat a source row with unresolved identity as evidence that an
+    # existing home was sold. Missing rows still follow the conservative checks.
+    if skipped_new or ambiguous:
+        warnings.append(f'{len(skipped_new)} new listings lacked verified full IDs; {len(ambiguous)} ambiguous matches')
     to_remove = []
     unverified_coming = []
     for home in list(homes):
@@ -332,6 +342,13 @@ def sync(html, laptop, session, *, allow_deletions=False):
             # A static HTTP request cannot prove View More has been fully expanded.
             # Preserve Coming Soon unless a separate browser-based verification is supplied.
             unverified_coming.append(key)
+            retained += 1
+            continue
+        # If a source listing with the same community/short lot exists but
+        # could not be matched, do not classify the existing home as absent.
+        c = by_community.get(home.get('cm'), {})
+        if any(short_lot(x['lot']) == short_lot(key) and same_city(x['city'], c.get('c'))
+               and norm(x['collection']).startswith(norm(c.get('n'))) for x in items):
             retained += 1
             continue
         path = lu.get(key)
@@ -353,6 +370,8 @@ def sync(html, laptop, session, *, allow_deletions=False):
                 to_remove.append((home, 'two missing-link checks'))
             else:
                 retained += 1
+    if (skipped_new or ambiguous) and to_remove:
+        raise RuntimeError('Unresolved source listings plus proposed removals; refusing publication')
     if len(to_remove) > 15:
         raise RuntimeError(f'Would remove {len(to_remove)} homes (limit 15); no changes published')
     if to_remove and not allow_deletions:
@@ -371,7 +390,7 @@ def sync(html, laptop, session, *, allow_deletions=False):
         if str(v).rstrip('/').split('/')[-1].casefold() != str(k).casefold():
             raise RuntimeError(f'LU link mismatch: {k}')
     if len({lot_key(h.get('lot')) for h in homes}) != len(homes):
-        raise RuntimeError('Duplicate lot ids in resulting homes')
+        raise RuntimeError('Duplicate FULL Lennar lot IDs in resulting homes')
     html = replace_data(html, 'D', d)
     html = replace_data(html, 'LU', lu)
     eastern = dt.datetime.now(dt.timezone(dt.timedelta(hours=-5)))
@@ -392,7 +411,7 @@ def sync(html, laptop, session, *, allow_deletions=False):
                  homes=len(homes), coming_soon=sum(h['s'] in ('S','C') for h in homes),
                  communities=len(d['c']), added=added, changed=changed, removed=removed,
                  missing_retained=retained, coming_soon_unverified=len(unverified_coming),
-                 missing_links=missing_links, skipped_new=skipped_new,
+                 missing_links=missing_links, skipped_new=skipped_new, ambiguous=ambiguous,
                  laptop_sync=laptop_used, warnings=warnings)
     return html, stats
 
