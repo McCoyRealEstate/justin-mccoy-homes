@@ -1,0 +1,39 @@
+name: Lennar Phase 6 - Photo Lookup Fix READ ONLY
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests beautifulsoup4 pillow
+      - name: Build fresh unpublished Phase 6 candidate
+        run: |
+          python build_lennar_preview.py
+          python verify_lennar_preview.py
+          python lennar_phase6_dry_run.py
+      - name: Patch photo lookup in unpublished candidate
+        run: python fix_lennar_photo_lookup.py
+      - name: Validate JavaScript
+        run: |
+          python - <<'PY'
+          from bs4 import BeautifulSoup
+          from pathlib import Path
+          html=Path('lennar_preview/index-phase6-photo-fixed-unpublished.html').read_text()
+          soup=BeautifulSoup(html,'html.parser')
+          scripts=[s.get_text() for s in soup.find_all('script') if not s.get('src') and s.get('type') not in ('application/json','application/ld+json')]
+          Path('lennar_preview/phase6-photo-fixed-scripts.js').write_text('\n;\n'.join(scripts))
+          PY
+          node --check lennar_preview/phase6-photo-fixed-scripts.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lennar-phase6-photo-fix
+          path: lennar_preview/
+          if-no-files-found: warn
