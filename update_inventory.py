@@ -235,6 +235,8 @@ def sync(html, laptop, session, *, allow_deletions=False):
     by_addr = {address_key(h.get('a')): h for h in homes if h.get('a')}
     by_community = {c['id']: c for c in communities}
     added = changed = removed = retained = 0
+    missing_links = []
+    skipped_new = []
     seen = set()
     for item in items:
         key = item['lot']
@@ -266,9 +268,12 @@ def sync(html, laptop, session, *, allow_deletions=False):
             raise RuntimeError(f'Duplicate lot {key}')
         seen.add(key)
         if home is None:
-            # Never invent links: a new home requires a verified direct homesite URL.
+            # A print report may not contain direct homesite links. Do not invent one.
+            # Skip just this new home and report it; continue auditing known homes.
             if not item['path']:
-                raise RuntimeError(f'New listing {item["a"]} lacks a verified homesite link; no changes published')
+                skipped_new.append(dict(lot=key, address=item['a'], collection=item['collection'],
+                                        reason='No verified direct homesite URL in inventory source'))
+                continue
             home = dict(a=item['a'], s=item['s'], p=item['p'], w=item['w'], bd=item['bd'], ba=item['ba'],
                         sq=item['sq'], g=0, pl=item['pl'], cm=community_id, lot=key, miss=0)
             sibling = next((h for h in homes if h['cm'] == community_id and norm(h.get('pl')) == norm(item['pl'])), None)
@@ -291,7 +296,11 @@ def sync(html, laptop, session, *, allow_deletions=False):
         if item['path']:
             lu[key] = item['path']
         elif key not in lu:
-            raise RuntimeError(f'Missing LU link for {key}; no changes published')
+            # Existing homes can be refreshed from their matched lot/address even if
+            # the original Claude snapshot has no LU link for that homesite.
+            # Leave LU untouched and surface the missing link in the audit.
+            missing_links.append(dict(lot=key, address=item['a'],
+                                      reason='Existing home has no verified direct homesite URL'))
     to_remove = []
     unverified_coming = []
     for home in list(homes):
@@ -362,6 +371,7 @@ def sync(html, laptop, session, *, allow_deletions=False):
                  homes=len(homes), coming_soon=sum(h['s'] in ('S','C') for h in homes),
                  communities=len(d['c']), added=added, changed=changed, removed=removed,
                  missing_retained=retained, coming_soon_unverified=len(unverified_coming),
+                 missing_links=missing_links, skipped_new=skipped_new,
                  laptop_sync=laptop_used, warnings=warnings)
     return html, stats
 
