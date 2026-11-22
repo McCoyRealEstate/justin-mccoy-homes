@@ -1,0 +1,109 @@
+name: Lennar Phase 8 - Automatic Refresh (Every 2 Hours)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lennar-controlled-publish
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install requests beautifulsoup4 pillow
+      - name: Preserve original website and baseline hash
+        run: |
+          mkdir -p lennar_publish
+          cp index.html lennar_publish/index-before-phase8.html
+          sha256sum index.html | cut -d' ' -f1 > lennar_publish/baseline.sha256
+      - name: Build and independently verify candidate
+        run: |
+          python build_lennar_preview.py
+          python verify_lennar_preview.py
+          python lennar_phase6_dry_run.py
+          python lennar_phase8_finalize.py
+      - name: Validate candidate and prepare change report
+        run: |
+          python - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          root=Path('lennar_preview'); backup=Path('lennar_publish')
+          diff=json.loads((root/'phase6-publish-diff.json').read_text())
+          prev=json.loads((root/'preview-report.json').read_text())
+          verify=json.loads((root/'verification-report.json').read_text())
+          fix=json.loads((root/'phase8-finalize-report.json').read_text())
+          assert all(x['passed'] for x in (diff,prev,verify,fix))
+          assert not diff['errors'] and not diff['warnings']
+          assert len(diff['removed'])<=15 and len(diff['added'])<=30
+          assert diff['candidate_homes']>=100 and diff['communities']==25
+          src=Path('index.html').read_bytes()
+          assert hashlib.sha256(src).hexdigest()==diff['baseline_sha256']
+          html=(root/'index-phase8-candidate.html').read_text()
+          assert 'let i = HIMG[h.lot] ?? HIMG[h.lot.toLowerCase()] ?? HIMG[h.lot.toUpperCase()];' in html
+          assert 'if (h.s === "S" || h.s === "C") h.np = 1' in html
+          assert len(html.encode())<20_000_000
+          scripts=[s.get_text() for s in BeautifulSoup(html,'html.parser').find_all('script') if not s.get('src') and s.get('type') not in ('application/json','application/ld+json')]
+          (root/'phase8-scripts.js').write_text('\n;\n'.join(scripts))
+          candidate=html.encode()
+          (backup/'index-proposed-phase8.html').write_bytes(candidate)
+          (backup/'phase8-report.json').write_text(json.dumps({
+            'passed':True,'baseline_sha256':hashlib.sha256(src).hexdigest(),
+            'candidate_sha256':hashlib.sha256(candidate).hexdigest(),
+            'baseline_homes':diff['baseline_homes'],'candidate_homes':diff['candidate_homes'],
+            'added':diff['added'],'removed':diff['removed'],'updated_count':diff['updated_count'],
+            'coming_soon_count':diff['coming_soon_count'],'communities':diff['communities'],
+            'identical_to_baseline':src==candidate},indent=2))
+          PY
+          node --check lennar_preview/phase8-scripts.js
+      - name: Upload backup and audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lennar-phase8-backup-${{ github.run_id }}
+          path: |
+            lennar_publish/index-before-phase8.html
+            lennar_publish/phase8-report.json
+            lennar_preview/verification-report.json
+            lennar_preview/phase6-publish-diff.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish only if enabled and verified changes exist
+        if: ${{ vars.LENNAR_AUTO_ENABLED == 'true' }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess
+          from pathlib import Path
+          report=json.loads(Path('lennar_publish/phase8-report.json').read_text())
+          before=Path('index.html').read_bytes()
+          after=Path('lennar_publish/index-proposed-phase8.html').read_bytes()
+          assert report['passed']
+          assert hashlib.sha256(before).hexdigest()==report['baseline_sha256']
+          assert hashlib.sha256(after).hexdigest()==report['candidate_sha256']
+          if before==after:
+              print('No changes; skip publishing')
+          else:
+              Path('index.html').write_bytes(after)
+              subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
+              subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
+              subprocess.run(['git','add','index.html'],check=True)
+              subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory (Phase 8)'],check=True)
+              subprocess.run(['git','push','origin','HEAD:main'],check=True)
+              print('Published verified inventory; revert commit to restore if necessary')
+          PY
