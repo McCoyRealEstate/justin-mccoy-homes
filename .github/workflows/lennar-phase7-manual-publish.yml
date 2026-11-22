@@ -1,0 +1,137 @@
+name: Lennar Phase 7 - Controlled Manual Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Choose PREVIEW first; PUBLISH requires confirmation'
+        required: true
+        type: choice
+        options:
+          - PREVIEW
+          - PUBLISH
+      confirmation:
+        description: 'For PUBLISH, type exactly PUBLISH-LENNAR (leave blank for PREVIEW)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lennar-controlled-publish
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      original_sha: ${{ steps.hash.outputs.original_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests beautifulsoup4 pillow
+      - name: Record live baseline and save backup
+        id: hash
+        run: |
+          mkdir -p lennar_publish
+          cp index.html lennar_publish/index-before-phase7.html
+          echo "original_sha=$(sha256sum index.html | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Build and independently verify fresh candidate
+        run: |
+          python build_lennar_preview.py
+          python verify_lennar_preview.py
+          python lennar_phase6_dry_run.py
+          python fix_lennar_photo_lookup.py
+      - name: Verify final candidate and preserve report
+        run: |
+          python - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          src=Path('index.html').read_bytes()
+          p=Path('lennar_preview')
+          diff=json.loads((p/'phase6-publish-diff.json').read_text())
+          fix=json.loads((p/'phase6-photo-fix-report.json').read_text())
+          preview=json.loads((p/'preview-report.json').read_text())
+          check=json.loads((p/'verification-report.json').read_text())
+          assert diff['passed'] and fix['only_photo_lookup_changed'] and fix['photo_or_fallback_valid_for_all_homes']
+          assert preview['passed'] and check['passed']
+          assert not diff['errors'] and not diff['warnings']
+          assert diff['baseline_sha256']==hashlib.sha256(src).hexdigest()
+          assert diff['candidate_homes']>=100 and len(diff['removed'])<=15
+          assert diff['communities']==25
+          assert diff['coming_soon_count']>=0
+          candidate=(p/'index-phase6-photo-fixed-unpublished.html').read_text()
+          assert 'let i = HIMG[h.lot] ?? HIMG[h.lot.toLowerCase()] ?? HIMG[h.lot.toUpperCase()];' in candidate
+          assert 'if (h.s === "S" || h.s === "C") h.np = 1' in candidate
+          assert len(candidate)<20_000_000
+          soup=BeautifulSoup(candidate,'html.parser')
+          scripts=[s.get_text() for s in soup.find_all('script') if not s.get('src') and s.get('type') not in ('application/json','application/ld+json')]
+          (p/'phase7-scripts.js').write_text('\n;\n'.join(scripts))
+          (Path('lennar_publish')/'index-proposed-phase7.html').write_text(candidate)
+          (Path('lennar_publish')/'phase7-approval-report.json').write_text(json.dumps({
+             'mode':'MANUAL CONTROLLED PUBLISH', 'original_sha256':hashlib.sha256(src).hexdigest(),
+             'candidate_sha256':hashlib.sha256(candidate.encode()).hexdigest(),
+             'baseline_homes':diff['baseline_homes'],'candidate_homes':diff['candidate_homes'],
+             'added':diff['added'],'removed':diff['removed'],'updated_count':diff['updated_count'],
+             'communities':diff['communities'],'coming_soon_count':diff['coming_soon_count'],
+             'checks_passed':True},indent=2))
+          PY
+          node --check lennar_preview/phase7-scripts.js
+      - name: Upload mandatory backup and candidate for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: lennar-phase7-backup-and-candidate
+          path: lennar_publish/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish requires explicit confirmation
+        if: ${{ inputs.mode == 'PUBLISH' && inputs.confirmation != 'PUBLISH-LENNAR' }}
+        run: |
+          echo 'Publishing blocked: confirmation must equal PUBLISH-LENNAR' >&2
+          exit 1
+
+  publish:
+    if: ${{ inputs.mode == 'PUBLISH' && inputs.confirmation == 'PUBLISH-LENNAR' }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 2
+      - uses: actions/download-artifact@v4
+        with:
+          name: lennar-phase7-backup-and-candidate
+          path: lennar_publish
+      - name: Verify baseline has not changed since preparation
+        run: |
+          test "$(sha256sum index.html | cut -d' ' -f1)" = "${{ needs.prepare.outputs.original_sha }}" || { echo 'STOP: live index changed during preparation'; exit 1; }
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          report=json.loads(Path('lennar_publish/phase7-approval-report.json').read_text())
+          old=Path('index.html').read_bytes()
+          new=Path('lennar_publish/index-proposed-phase7.html').read_bytes()
+          assert report['checks_passed'] and len(report['removed'])<=15
+          assert hashlib.sha256(old).hexdigest()==report['original_sha256']
+          assert hashlib.sha256(new).hexdigest()==report['candidate_sha256']
+          assert old!=new
+          PY
+      - name: Publish exactly the verified HTML
+        run: |
+          cp lennar_publish/index-proposed-phase7.html index.html
+          git config user.name 'Lennar Inventory Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && { echo 'No changes to publish'; exit 1; }
+          git commit -m 'Publish verified Lennar inventory Phase 7 (manual)'
+          git push origin HEAD:main
+          echo 'PUBLISHED. Restore by reverting this single commit if needed.'
