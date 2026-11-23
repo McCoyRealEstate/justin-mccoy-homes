@@ -51,4 +51,18 @@ def main():
     report={"baseline":sorted(old),"sources":{k:sorted(v) for k,v in sources.items()},"new_candidates":sorted(found-old),"missing_candidates":sorted(old-found),"records":records}
     Path("community-audit.json").write_text(json.dumps(report,indent=2))
     print(json.dumps({k:v for k,v in report.items() if k!="records"},indent=2))
+    from collections import Counter
+    def images(obj,path=""):
+        result=[]
+        if isinstance(obj,dict):
+            for k,v in obj.items():
+                result.extend(images(v,path+"."+k))
+        elif isinstance(obj,list):
+            for i,v in enumerate(obj): result.extend(images(v,path+"["+str(i)+"]"))
+        elif isinstance(obj,str) and ("monument" in obj.lower() or ("image" in path.lower() and ("http" in obj or obj.startswith("/")))):
+            result.append({"field":path,"value":obj})
+        return result
+    for record in records:
+        counts=Counter(h["status"] for h in record.get("homes",[]))
+        print(json.dumps({"url":record["url"],"error":record.get("error"),"status_counts":dict(counts),"metadata_keys":[sorted(o.keys()) for o in record.get("community_objects",[])],"image_candidates":[x for o in record.get("community_objects",[]) for x in images(o)][:30]},default=str))
 if __name__=="__main__": main()
