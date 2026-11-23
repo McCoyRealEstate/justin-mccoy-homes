@@ -4,6 +4,7 @@ Fail closed if community names/cities cannot be grounded.
 """
 import json,re,sys,datetime
 from pathlib import Path
+from urllib.parse import urlparse
 source=Path(sys.argv[1] if len(sys.argv)>1 else 'index.html')
 html=source.read_text(encoding='utf-8')
 m=re.search(r'(?m)^const\s+D\s*=\s*',html)
@@ -29,10 +30,13 @@ for c in communities:
     if not city and label:
         matches={v for k,v in known.items() if k.split(' - ')[0]==label.lower().split(' - ')[0]}
         if len(matches)==1:city=matches.pop()
+    if not city:
+        parts=urlparse(c.get('url','')).path.strip('/').split('/')
+        if len(parts)>=5 and parts[:3]==['new-homes','florida','orlando']:city=parts[3].replace('-',' ').title().replace('St Cloud','St. Cloud')
     if not label or not city:
         unmatched.append({'id':c.get('id'),'label':label,'keys':list(c.keys())[:12]})
         continue
-    out.append({'id':c['id'],'community':label,'city':city})
+    out.append({'id':c['id'],'community':label,'city':city,'url':c.get('url','')})
 if unmatched:print('Unmapped communities (not published):',json.dumps(unmatched[:10]))
 if len(out)<15:raise SystemExit('Insufficient grounded city/community mappings')
 ids={c['id']:c for c in out}
@@ -51,7 +55,7 @@ for h in homes:
     is_soon=status in ('S','C') or h.get('np')==1
     price=h.get('p')
     home_listings.append({
-        'community':c['community'],'city':c['city'],
+        'community':c['community'],'city':c['city'],'community_id':c['id'],
         'lot':h.get('lot',''),'address':h.get('a',''),
         'plan':h.get('pl',''),'beds':h.get('bd'),
         'baths':h.get('ba'),'sqft':h.get('sq'),
@@ -59,7 +63,7 @@ for h in homes:
         'availability':('Coming soon' if is_soon else 'Move-in ready' if status=='M' else 'Under construction' if status=='U' else 'Confirm availability')
     })
 if len(home_listings)<100:raise SystemExit('Verified community home export unexpectedly small')
-payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(out),'listings':listings,'homes':home_listings}
+payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(out),'communities':out,'listings':listings,'homes':home_listings}
 target=Path(sys.argv[2] if len(sys.argv)>2 else 'lennar_preview/city-inventory.json')
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(json.dumps(payload,indent=2))
