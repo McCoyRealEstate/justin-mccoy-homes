@@ -73,7 +73,7 @@ async function load(){
   if(!D||!Array.isArray(D.c)||!Array.isArray(D.h)||!IMG||!PH||!HIMG||D.h.length<100)throw Error('Phase 8 data failed structural validation');
   const cm=new Map(D.c.map(c=>[c.id,c]));
   try{const ref=await fetch('/data/inventory.json?citymap='+Date.now(),{cache:'no-store'});if(ref.ok){const snapshot=await ref.json();for(const h of snapshot.listings||[]){const name=String(h.community||'').trim().toLowerCase(),city=normalizeCity(h.city);if(name&&city){cityLookup.set(name,city);cityLookup.set(name.split(' - ')[0],city);}}}}catch(e){console.warn('City lookup backup unavailable');}
-  const data=D.h.map(h=>{const c=cm.get(h.cm)||{},plan=String(h.pl||'').trim(),lot=String(h.lot||'');const idx=HIMG[lot]??HIMG[lot.toLowerCase()]??HIMG[lot.toUpperCase()]??(PLANPH||{})[h.cm+'|'+plan.toLowerCase()]??(PLANPH||{})[plan.toLowerCase()];
+  const data=D.h.map(h=>{const c=cm.get(h.cm)||{},plan=String(h.pl||'').trim(),lot=String(h.lot||'');const idx=HIMG[lot]??HIMG[lot.toLowerCase()]??HIMG[lot.toUpperCase()]??(PLANPH||{})[h.cm+'|'+plan.toLowerCase()]??IMG[h.cm];
    return {lot,address:h.a||'',community:c.n||c.name||c.community||h.cm,city:normalizeCity(c.city||c.ct||c.locationCity||cityLookup.get(String(c.n||c.name||c.community||'').toLowerCase())||cityLookup.get(String(c.n||c.name||c.community||'').toLowerCase().split(' - ')[0])||''),plan,price:(h.s==='S'||h.s==='C'||h.np===1)?null:(h.p||null),beds:h.bd||0,baths:h.ba||0,sqft:h.sq||0,availability:h.s==='M'?'Move-in ready':h.s==='U'?'Under construction':'Coming soon',photo:imageFrom(idx,PH),communityPhoto:imageFrom(IMG[h.cm],PH),officialUrl:LU?.[lot]||c.url||null};
   });
   populate(data,{verified:true,updated:''});
