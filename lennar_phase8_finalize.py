@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Idempotent photo-lookup finalizer for scheduled Lennar publishing."""
-import json,re,sys
+import json,re,sys,subprocess
 from pathlib import Path
 OLD='let i = HIMG[h.lot] ?? HIMG[h.lot.toUpperCase()];'
 NEW='let i = HIMG[h.lot] ?? HIMG[h.lot.toLowerCase()] ?? HIMG[h.lot.toUpperCase()];'
@@ -25,7 +25,7 @@ for h in D['h']:
     fallback=PLANPH.get(cm+'|'+plan,PLANPH.get(plan))
     if not(valid(idx) or valid(fallback) or cm in IMG):fail.append(lot)
 if fail:raise SystemExit('No photo fallback for: '+','.join(fail))
-(folder/'index-phase8-candidate.html').write_text(dst)
+(folder/'index-phase8-candidate.html').write_text(dst)\nsubprocess.run([sys.executable,'apply_seo.py',str(folder/'index-phase8-candidate.html')],check=True)
 report={'passed':True,'photo_lookup':status,'homes':len(D['h']),'communities':len(D['c']),'photos':len(PH),'photo_or_fallback_valid_for_all_homes':True}
 (folder/'phase8-finalize-report.json').write_text(json.dumps(report,indent=2))
 print(json.dumps(report,indent=2))
