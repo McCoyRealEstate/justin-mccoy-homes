@@ -118,8 +118,8 @@ jobs:
           elif changes.returncode==1:
               subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory and city pages'],check=True)
               subprocess.run(['git','fetch','origin','main'],check=True)
-    subprocess.run(['git','rebase','origin/main'],check=True)
-    subprocess.run(['git','push','origin','HEAD:main'],check=True)
+              subprocess.run(['git','rebase','origin/main'],check=True)
+              subprocess.run(['git','push','origin','HEAD:main'],check=True)
               print('Published homepage and city pages together from verified candidate')
           else:
               raise SystemExit('Could not inspect staged changes')
