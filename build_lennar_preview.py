@@ -94,6 +94,26 @@ try:
         if not isinstance(value,dict):fail(name+" should be an object")
     if not isinstance(PH,list):fail("PH should be array")
     before=copy.deepcopy(D)
+    from audit_community_sources import read as audit_read, candidates
+    directory, soup = audit_read(BASE.rstrip("/"))
+    discovered = candidates(directory,soup)
+    known = {cmid(c["url"]) for c in D["c"]}
+    report["community_additions"]=[]
+    for url in sorted(discovered):
+        cid=cmid(url)
+        if cid in known: continue
+        state=read(url)
+        matches=[o for o in objects(state,"CommunityType") if canon(o.get("url"))==canon(url)]
+        if len(matches)!=1: fail("Unverified new community: "+url)
+        obj=matches[0]
+        name=obj.get("name")
+        hero=obj.get("heroImage") or {}
+        image=hero.get("url","")
+        if not name or not safephoto(image) or "monument" not in (image+" "+str(hero.get("alt",""))).lower(): fail("New community metadata incomplete: "+url)
+        D["c"].append({"id":cid,"n":name,"url":url,"city":url.rstrip("/").split("/")[-2].replace("-"," ").title()})
+        IMG[cid]=image_data(image)
+        known.add(cid)
+        report["community_additions"].append(cid)
     communities={c["id"]:c for c in D["c"]}
     oldhomes={lot(h):h for h in D["h"]}
     if len(oldhomes)!=len(D["h"]):fail("Duplicate baseline lot IDs")
@@ -109,7 +129,7 @@ try:
     for c in D["c"]:
         state=read(c["url"])
         ch=objects(state,"HomesiteType")
-        if not ch:fail("Community page empty: "+c["id"])
+        if not ch and not any(canon(o.get("url"))==canon(c["url"]) for o in objects(state,"CommunityType")):fail("Community page unverified: "+c["id"])
         page_states[c["id"]]=state
         for obj in objects(state,"CommunityType"):
             url=canon(obj.get("url"))
@@ -199,7 +219,7 @@ try:
     for k,v in LU.items():
         if canon(v).split("/")[-1]!=str(k).lower():fail("Invalid listing link "+k)
     new=original
-    for key,value in (("D",D),("LU",LU),("PH",PH),("HIMG",HIMG),("PLANPH",PLANPH)):
+    for key,value in (("D",D),("LU",LU),("PH",PH),("HIMG",HIMG),("PLANPH",PLANPH),("IMG",IMG)):
         new=put(new,key,value)
     new=put(new,"IMPORTED",report["utc"])
     try:
@@ -210,7 +230,7 @@ try:
     # Exact preservation of all non-data code and community monuments.
     sentinel="__DATA_CONSTANT__"
     def skeleton(txt):
-        for key in ("D","LU","PH","HIMG","PLANPH","IMPORTED","UPDATED"):
+        for key in ("D","LU","PH","HIMG","PLANPH","IMG","IMPORTED","UPDATED"):
             _,(a,b)=line(txt,key)
             txt=txt[:a]+sentinel+txt[b:]
         return txt
