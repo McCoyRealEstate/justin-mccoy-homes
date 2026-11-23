@@ -8,7 +8,7 @@ from html import escape
 from urllib.parse import quote
 ROOT=Path(__file__).resolve().parent
 data=json.loads((ROOT/'data/inventory.json').read_text())
-cities={'Groveland':'Groveland','Clermont':'Clermont','Minneola':'Minneola','Saint Cloud':'St. Cloud','Davenport':'Davenport'}
+cities={'Groveland':'Groveland','Clermont':'Clermont','Minneola':'Minneola','Saint Cloud':'St. Cloud','Davenport':'Davenport','Haines City':'Haines City','Kissimmee':'Kissimmee','Eustis':'Eustis'}
 def slug(s):return re.sub(r'[^a-z0-9]+','-',s.lower()).strip('-')
 def esc(s):return escape(str(s),quote=True)
 def page(title,desc,canonical,body):
