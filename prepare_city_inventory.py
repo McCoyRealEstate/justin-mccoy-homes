@@ -41,7 +41,25 @@ for h in homes:
     if h.get('cm') in counts and h.get('s') not in ('S','C'):counts[h['cm']]+=1
 listings=[{'community':c['community'],'city':c['city'],'verified_home_count':counts[c['id']]} for c in out if counts[c['id']]>0]
 if not listings:raise SystemExit('No verified community listings')
-payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(out),'listings':listings}
+# Separate verified home details for community presentation. Preserve the original
+# community-level listings schema used by city SEO pages.
+home_listings=[]
+for h in homes:
+    c=ids.get(h.get('cm'))
+    if not c:continue
+    status=h.get('s')
+    is_soon=status in ('S','C') or h.get('np')==1
+    price=h.get('p')
+    home_listings.append({
+        'community':c['community'],'city':c['city'],
+        'lot':h.get('lot',''),'address':h.get('a',''),
+        'plan':h.get('pl',''),'beds':h.get('bd'),
+        'baths':h.get('ba'),'sqft':h.get('sq'),
+        'price':price if not is_soon and isinstance(price,(int,float)) and price>0 else None,
+        'availability':('Coming soon' if is_soon else 'Move-in ready' if status=='M' else 'Under construction' if status=='U' else 'Confirm availability')
+    })
+if len(home_listings)<100:raise SystemExit('Verified community home export unexpectedly small')
+payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(out),'listings':listings,'homes':home_listings}
 target=Path(sys.argv[2] if len(sys.argv)>2 else 'lennar_preview/city-inventory.json')
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(json.dumps(payload,indent=2))
