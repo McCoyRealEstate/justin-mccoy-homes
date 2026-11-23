@@ -27,5 +27,5 @@ jobs:
           for p in files:
             s=p.read_text()
             assert '<title>' in s and 'rel="canonical"' in s
-            assert 'Jus3D.com' in s
+            assert 'Justin McCoy' in s
           PY
