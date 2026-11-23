@@ -19,6 +19,13 @@ targets=[
 directory=data.get('communities',[])
 if directory:targets=[(c['community'],c['city'],c['id']) for c in directory]
 OFFICIAL_COMMUNITY_URLS={**{c['community']:c.get('url') for c in directory},'Meadow Pointe':'https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe'}
+# Approximate city-center coordinates for regional recommendations, not driving distances.
+CITY_CENTERS={'groveland':(28.558,-81.851),'clermont':(28.549,-81.772),'minneola':(28.574,-81.746),'eustis':(28.852,-81.685),'st. cloud':(28.248,-81.282),'st cloud':(28.248,-81.282),'davenport':(28.161,-81.602),'haines city':(28.114,-81.628),'winter haven':(28.022,-81.733),'kissimmee':(28.292,-81.407),'orlando':(28.538,-81.379),'winter garden':(28.565,-81.586),'apopka':(28.693,-81.532),'deland':(29.028,-81.303),'deltona':(28.900,-81.263),'mount dora':(28.802,-81.644),'leesburg':(28.810,-81.878),'poinciana':(28.140,-81.458),'lake wales':(27.901,-81.586)}
+def proximity(a,b):
+    if a.lower()==b.lower():return 0
+    x,y=CITY_CENTERS.get(a.lower()),CITY_CENTERS.get(b.lower())
+    if not x or not y:return float('inf')
+    return ((x[0]-y[0])**2+(.88*(x[1]-y[1]))**2)**.5
 def esc(s):return escape(str(s).replace('Mccartney','McCartney').replace('MCCARTNEY','McCartney'),quote=True)
 def cityslug(city):return {'St. Cloud':'st-cloud'}.get(city,city.lower().replace(' ','-'))
 def render(title,desc,url,body):
@@ -48,7 +55,7 @@ for name,city,slug in targets:
     home_section='<section class="inventory-section"><h2>Available Homes in '+esc(name)+'</h2><p class="inventory-sub">Listings from the latest published inventory report. Prices, availability and completion estimates may change; confirm details directly before making plans.</p>'+filter_ui+'<div class="home-grid">'+home_cards+'</div></section>'
     if not homes:
         counts={c['id']:sum(h.get('community_id')==c['id'] and h.get('availability') in ('Move-in ready','Under construction') for h in data.get('homes',[])) for c in directory}
-        alternatives=sorted((c for c in directory if c['id']!=slug and counts[c['id']]>0),key=lambda c:(c['city']!=city,-counts[c['id']],c['community']))[:3]
+        alternatives=sorted((c for c in directory if c['id']!=slug and counts[c['id']]>0),key=lambda c:(proximity(city,c['city']),-counts[c['id']],c['community']))[:3]
         home_section='<section class="inventory-section"><h2>No homes currently listed</h2><p>Contact Justin for future availability at '+esc(name)+'.</p><h2>Explore other available communities</h2><div class="cards">'+''.join('<article><h3><a href="/communities/'+esc(c['id'])+'.html">'+esc(c['community'])+'</a></h3><p>'+esc(c['city'])+' · '+str(counts[c['id']])+' available homes</p></article>' for c in alternatives)+'</div></section>'
     body=body.replace('</main><section class="closing">',home_section+'</main><section class="closing">',1)
     audience='<section class="audience"><div class="audience-inner"><h2>Local Expertise. A Welcome for Buyers Everywhere.</h2><p class="audience-intro">Whether you live around the corner or are exploring Central Florida from another state or country, get clear answers and direct guidance as you compare new construction opportunities.</p><div class="audience-grid"><div class="audience-item"><h3>Local Homebuyers</h3><p>Explore communities, floor plans, and move-in timelines with a consultant who knows the area.</p></div><div class="audience-item"><h3>Relocating Buyers</h3><p>Compare locations and home options remotely before planning an in-person visit.</p></div><div class="audience-item"><h3>Investment-Minded Buyers</h3><p>Request details for your own due diligence, including community restrictions and estimated ownership costs.</p></div></div><p class="audience-note">Investment returns and rental eligibility are not guaranteed. Financing, ownership, and community rules vary by property and buyer.</p></div></section>'
