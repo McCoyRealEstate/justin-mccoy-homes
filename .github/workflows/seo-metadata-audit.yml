@@ -1,0 +1,17 @@
+name: SEO Metadata Audit (Read Only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - seo-audit.py
+      - .github/workflows/seo-metadata-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Inspect current homepage SEO metadata
+        run: python seo-audit.py
