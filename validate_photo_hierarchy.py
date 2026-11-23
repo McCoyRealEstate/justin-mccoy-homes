@@ -1,8 +1,8 @@
-import json,re,base64,io
+import json,re,base64,io,sys
 from pathlib import Path
 from collections import Counter
 from PIL import Image
-html=Path("lennar_preview/index-preview.html").read_text()
+html=Path(sys.argv[1] if len(sys.argv)>1 else "lennar_preview/index-phase8-candidate.html").read_text()
 def const(k):
     m=re.search(r"(?m)^const\s+"+k+r"\s*=\s*",html)
     return json.JSONDecoder().raw_decode(html[m.end():])[0]
