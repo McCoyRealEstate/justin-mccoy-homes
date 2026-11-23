@@ -1,0 +1,29 @@
+name: Validate Local SEO Pages
+on:
+  pull_request:
+    paths:
+      - generate_local_pages.py
+      - .github/workflows/local-seo-pages.yml
+      - .github/workflows/validate-local-seo.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          python -m py_compile generate_local_pages.py
+          python generate_local_pages.py
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          files=list(Path('areas').glob('*.html'))
+          assert len(files)==6
+          root=ET.parse('sitemap.xml').getroot()
+          assert len(root)==7
+          for p in files:
+            s=p.read_text()
+            assert '<title>' in s and 'rel="canonical"' in s
+            assert 'Jus3D.com' in s
+          PY
