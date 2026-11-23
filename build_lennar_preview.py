@@ -53,7 +53,7 @@ def photo(h):
     e=h.get("elevationImage") or {}
     return (e.get("image") or {}).get("url","") if isinstance(e,dict) and isinstance(e.get("image"),dict) else ""
 def safephoto(url):
-    return bool(url) and "comingsoon" not in url.lower() and urlparse(urljoin("https://cdn.lennar.com/",url)).hostname in ("cdn.lennar.com","www.lennar.com","lennar.com")
+    return bool(url) and "comingsoon" not in url.lower() and urlparse(urljoin("https://cdn.lennar.com/",url)).hostname in ("cdn.lennar.com","www.lennar.com","lennar.com","lennar.bynder.com")
 def image_data(url):
     u=urljoin("https://cdn.lennar.com/",url)
     r=s.get(u,timeout=45,headers={"Referer":"https://www.lennar.com/"},stream=True)
@@ -126,11 +126,31 @@ try:
     page_states={}
     fees={}
     soon={}
+    report["monument_updates"]=[]
+    report["monument_retained"]=[]
     for c in D["c"]:
         state=read(c["url"])
         ch=objects(state,"HomesiteType")
         if not ch and not any(canon(o.get("url"))==canon(c["url"]) for o in objects(state,"CommunityType")):fail("Community page unverified: "+c["id"])
         page_states[c["id"]]=state
+        exact=[o for o in objects(state,"CommunityType") if canon(o.get("url"))==canon(c["url"])]
+        monument=None
+        for obj in exact:
+            gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
+            for im in gallery:
+                if isinstance(im,dict) and safephoto(im.get("url")) and "monument" in (str(im.get("url"))+" "+str(im.get("alt"))).lower():
+                    monument=im["url"];break
+            if monument:break
+        if monument:
+            try:
+                uri=image_data(monument)
+                if IMG.get(c["id"])!=uri:
+                    IMG[c["id"]]=uri
+                    report["monument_updates"].append({"community":c["id"],"source":monument})
+            except Exception as exc:
+                report["monument_retained"].append({"community":c["id"],"reason":str(exc)[:120]})
+        else:
+            report["monument_retained"].append({"community":c["id"],"reason":"No explicitly identified monument in official hero gallery"})
         for obj in objects(state,"CommunityType"):
             url=canon(obj.get("url"))
             if url and cmid(url)==c["id"]:
