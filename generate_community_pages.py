@@ -82,39 +82,3 @@ for url in [hub]+[x[3] for x in links]:
 ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
 tree.write(sitemap,encoding='utf-8',xml_declaration=True)
 print('Generated',len(links),'community guides and updated sitemap')
-+format(r['price'],',') if isinstance(r.get('price'),(int,float)) else 'Price on request')+'</strong></div><h3>'+esc(r.get('plan','Home'))+' <small>· Homesite '+esc(r.get('lot','—'))+'</small></h3><p class="home-address">'+esc(r.get('address','Address on request'))+', '+esc(city)+', FL</p><p class="home-specs">'+esc(r.get('beds','—'))+' beds · '+esc(r.get('baths','—'))+' baths · '+(format(r['sqft'],',') if isinstance(r.get('sqft'),(int,float)) else '—')+' sq ft</p><p class="home-status">'+esc(r.get('availability','Confirm availability'))+'</p><a href="mailto:Justin.McCoy@Lennar.com?subject='+quote('Home inquiry: '+str(r.get('plan','Home')).replace('Mccartney','McCartney').replace('MCCARTNEY','McCartney')+' homesite '+str(r.get('lot','')))+'">Ask About This Home →</a></article>' for r in homes)
-    home_section='<section class="inventory-section"><h2>Available Homes in '+esc(name)+'</h2><p class="inventory-sub">Listings from the latest published inventory report. Prices, availability and completion estimates may change; confirm details directly before making plans.</p><div class="home-grid">'+home_cards+'</div></section>'
-    body=body.replace('</main><section class="closing">',home_section+'</main><section class="closing">',1)
-    body=body.replace('<div class="home-grid">',"<div class=\"inventory-controls\"><label>Floor Plan<select id=\"filter-plan\"><option value=\"\">All floor plans</option></select></label><label>Availability<select id=\"filter-status\"><option value=\"\">All availability</option><option value=\"ready\">Move-in ready</option><option value=\"upcoming\">Upcoming completion</option></select></label><label>Maximum Price<select id=\"filter-price\"><option value=\"\">Any price</option><option value=\"400000\">Up to $400,000</option><option value=\"450000\">Up to $450,000</option><option value=\"500000\">Up to $500,000</option><option value=\"600000\">Up to $600,000</option><option value=\"750000\">Up to $750,000</option><option value=\"1000000\">Up to $1,000,000</option></select></label></div><p class=\"inventory-count\" id=\"inventory-count\" aria-live=\"polite\"></p>"+'<div class="home-grid">',1)
-    body+= "<script>(function(){const grid=document.querySelector('.home-grid');if(!grid)return;const cards=Array.from(grid.querySelectorAll('.home-card'));const plan=document.getElementById('filter-plan'),status=document.getElementById('filter-status'),price=document.getElementById('filter-price'),count=document.getElementById('inventory-count');if(!plan||!status||!price)return;const plans=[...new Set(cards.map(c=>c.querySelector('h3')?.childNodes[0]?.textContent.trim()).filter(Boolean))].sort();plans.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;plan.appendChild(o)});function update(){let n=0;cards.forEach(c=>{const name=c.querySelector('h3')?.childNodes[0]?.textContent.trim()||'';const amount=Number((c.querySelector('.home-card-top strong')?.textContent||'').replace(/[^0-9]/g,''));const ready=(c.querySelector('.home-status')?.textContent||'').toLowerCase().includes('move-in ready');const show=(!plan.value||name===plan.value)&&(!price.value||(amount>0&&amount<=Number(price.value)))&&(!status.value||(status.value==='ready'?ready:!ready));c.hidden=!show;if(show)n++});count.textContent=n+' of '+cards.length+' homes shown'}[plan,status,price].forEach(e=>e.addEventListener('change',update));update()})();</script>"
-    body=body.replace('<main class="content">', "<section class=\"audience\"><div class=\"audience-inner\"><h2>Local Expertise. A Welcome for Buyers Everywhere.</h2><p class=\"audience-intro\">Whether you live around the corner or are exploring Central Florida from another state or country, get clear answers and direct guidance as you compare new construction opportunities.</p><div class=\"audience-grid\"><div class=\"audience-item\"><h3>Local Homebuyers</h3><p>Explore communities, floor plans, and move-in timelines with a consultant who knows the area.</p></div><div class=\"audience-item\"><h3>Relocating Buyers</h3><p>Compare locations and home options remotely before planning an in-person visit.</p></div><div class=\"audience-item\"><h3>Investment-Minded Buyers</h3><p>Request details for your own due diligence, including community restrictions and estimated ownership costs.</p></div></div><p class=\"audience-note\">Investment returns and rental eligibility are not guaranteed. Financing, ownership, and community rules vary by property and buyer.</p></div></section>"+'<main class="content">',1)
-    body=body.replace('>Schedule a Tour</a>', '>Schedule Your Private Tour</a>')
-    body=body.replace('>View All Inventory</a>', '>View All Inventory</a><a class="button alt" href="mailto:Justin.McCoy@Lennar.com?subject=Virtual%20Tour%20Request">Request a Virtual Tour →</a>')
-    if name=='Meadow Pointe':
-        body=body.replace('<div class="cards">', '<div class="location-card"><div><div class="location-label">📍 Visit Our Welcome Home Center</div><div class="location-address">929 Tundra Loop<br>Groveland, FL 34736</div></div><a class="location-link" href="https://www.google.com/maps/search/?api=1&amp;query=929%20Tundra%20Loop%2C%20Groveland%2C%20FL%2034736" target="_blank" rel="noopener noreferrer">Get Directions →</a></div><div class="cards">',1)
-    (out/(slug+'.html')).write_text(render(title,desc,url,body),encoding='utf-8')
-    links.append((name,city,slug,url))
-hub='https://jus3d.com/communities/'
-body='<h1>Featured Lennar New Construction Communities</h1><p>Explore community-specific information with Justin McCoy, then browse current Central Florida inventory.</p>'+''.join('<article><h2><a href="/communities/'+slug+'.html">'+esc(name)+'</a></h2><p>'+esc(city)+', Florida</p></article>' for name,city,slug,_ in links)+'<p><a href="/areas/">Browse by city</a> · <a href="/">Search all homes</a></p>'
-(out/'index.html').write_text(render('Featured Lennar Communities in Central Florida | Justin McCoy | New Homes','Explore Meadow Pointe, Hidden Ridge, Sugarloaf Ridge, Waterlin and Waterstone with Justin McCoy.',hub,body),encoding='utf-8')
-for name,city,slug,_ in links:
-    path=ROOT/'areas'/(cityslug(city)+'.html')
-    if not path.exists():raise SystemExit('Missing city page '+str(path))
-    html=path.read_text()
-    needle='<h3>'+esc(name)
-    # A city page may list a collection suffix; insert a direct community link ahead of the first matching collection.
-    i=html.find(needle)
-    if i>=0:
-        html=html[:i]+'<p><a href="/communities/'+slug+'.html">Explore '+esc(name)+' community guide</a></p>'+html[i:]
-        path.write_text(html)
-sitemap=ROOT/'sitemap.xml'
-tree=ET.parse(sitemap)
-ns='{http://www.sitemaps.org/schemas/sitemap/0.9}'
-existing={n.text for n in tree.getroot().iter(ns+'loc')}
-for url in [hub]+[x[3] for x in links]:
-    if url not in existing:
-        entry=ET.SubElement(tree.getroot(),ns+'url')
-        ET.SubElement(entry,ns+'loc').text=url
-ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
-tree.write(sitemap,encoding='utf-8',xml_declaration=True)
-print('Generated',len(links),'community guides and updated sitemap')
