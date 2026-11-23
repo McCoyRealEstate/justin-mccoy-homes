@@ -121,11 +121,12 @@ try:
     report["community_removals"]=[]
     discovered_ids={cmid(u) for u in discovered}
     def eligible_removal(cid,discovered_ids,statuses,active_lots):
-        return cid not in discovered_ids and bool(statuses) and all(x in {"SOLD_OUT","DISCONTINUED","CLOSED"} for x in statuses) and not active_lots
+        return cid not in discovered_ids and bool(statuses) and all(x in {"DISCONTINUED","CLOSED"} for x in statuses) and not active_lots
     assert not eligible_removal("test",{"test"},{"SOLD_OUT"},[])
     assert not eligible_removal("test",set(),set(),[])
     assert not eligible_removal("test",set(),{"SOLD_OUT"},["active"])
-    assert eligible_removal("test",set(),{"SOLD_OUT"},[])
+    assert not eligible_removal("test",set(),{"SOLD_OUT"},[])
+    assert eligible_removal("test",set(),{"DISCONTINUED"},[])
     for c in list(D["c"]):
         cid=c["id"]
         if cid in discovered_ids:continue
