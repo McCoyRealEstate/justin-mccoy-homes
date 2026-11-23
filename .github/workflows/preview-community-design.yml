@@ -1,5 +1,11 @@
 name: Publish Community Design Preview
 on:
+  push:
+    branches: [design/community-landing-pages]
+    paths:
+      - generate_community_pages.py
+      - generate_local_pages.py
+      - .github/workflows/preview-community-design.yml
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -13,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   preview:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
