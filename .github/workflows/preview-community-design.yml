@@ -38,7 +38,7 @@ jobs:
           for page in pages:
               html=page.read_text()
               html=html.replace('<head>','<head><meta name="robots" content="noindex,nofollow">',1)
-              html=html.replace('/assets/justin-mccoy-headshot.webp','/preview/community-design/justin-mccoy-headshot.webp')
+              html=html.replace('/assets/justin-mccoy-headshot.webp','https://raw.githubusercontent.com/McCoyRealEstate/justin-mccoy-homes/design/community-landing-pages/assets/justin-mccoy-headshot.webp')
               page.write_text(html)
           PY
       - uses: actions/checkout@v6
@@ -52,7 +52,6 @@ jobs:
           # Replace the entire preview set; remove pages no longer generated.
           find published/preview/community-design -maxdepth 1 -type f -name '*.html' -delete
           cp proposed/communities/*.html published/preview/community-design/
-          cp proposed/assets/justin-mccoy-headshot.webp published/preview/community-design/justin-mccoy-headshot.webp
           cd published
           git config user.name "McCoy Preview Bot"
           git config user.email "actions@users.noreply.github.com"
