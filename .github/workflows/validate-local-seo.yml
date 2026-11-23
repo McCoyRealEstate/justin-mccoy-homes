@@ -19,9 +19,9 @@ jobs:
           from pathlib import Path
           from xml.etree import ElementTree as ET
           files=list(Path('areas').glob('*.html'))
-          assert len(files)==6
+          assert len(files)==9
           root=ET.parse('sitemap.xml').getroot()
-          assert len(root)==7
+          assert len(root)==10
           for p in files:
             s=p.read_text()
             assert '<title>' in s and 'rel="canonical"' in s
