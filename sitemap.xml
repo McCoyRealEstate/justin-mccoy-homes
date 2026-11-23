@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://jus3d.com/</loc></url>
   <url><loc>https://jus3d.com/areas/</loc></url>
@@ -10,4 +10,4 @@
   <url><loc>https://jus3d.com/areas/haines-city.html</loc></url>
   <url><loc>https://jus3d.com/areas/kissimmee.html</loc></url>
   <url><loc>https://jus3d.com/areas/eustis.html</loc></url>
-</urlset>
+<url><loc>https://jus3d.com/communities/</loc></url><url><loc>https://jus3d.com/communities/meadow-pointe.html</loc></url><url><loc>https://jus3d.com/communities/hidden-ridge.html</loc></url><url><loc>https://jus3d.com/communities/sugarloaf-ridge.html</loc></url><url><loc>https://jus3d.com/communities/waterlin.html</loc></url><url><loc>https://jus3d.com/communities/waterstone.html</loc></url></urlset>
