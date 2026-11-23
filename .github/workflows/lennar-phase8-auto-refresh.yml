@@ -39,8 +39,6 @@ jobs:
           python verify_lennar_preview.py
           python lennar_phase6_dry_run.py
           python lennar_phase8_finalize.py
-          python generate_social_preview.py
-          python seo-audit.py
       - name: Validate candidate and prepare change report
         run: |
           python - <<'PY'
@@ -63,9 +61,7 @@ jobs:
           assert 'if (h.s === "S" || h.s === "C") h.np = 1' in html
           assert len(html.encode())<20_000_000
           scripts=[s.get_text() for s in BeautifulSoup(html,'html.parser').find_all('script') if not s.get('src') and s.get('type') not in ('application/json','application/ld+json')]
-          (root/'phase8-scripts.js').write_text('
-;
-'.join(scripts))
+          (root/'phase8-scripts.js').write_text('\n;\n'.join(scripts))
           candidate=html.encode()
           (backup/'index-proposed-phase8.html').write_bytes(candidate)
           (backup/'phase8-report.json').write_text(json.dumps({
@@ -106,7 +102,7 @@ jobs:
               Path('index.html').write_bytes(after)
               subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
               subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-              subprocess.run(['git','add','index.html','og-preview.png'],check=True)
+              subprocess.run(['git','add','index.html'],check=True)
               subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory (Phase 8)'],check=True)
               subprocess.run(['git','push','origin','HEAD:main'],check=True)
               print('Published verified inventory; revert commit to restore if necessary')
