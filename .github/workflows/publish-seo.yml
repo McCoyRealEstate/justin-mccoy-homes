@@ -1,0 +1,52 @@
+name: Publish McCoy SEO Metadata
+on:
+  push:
+    branches: [main]
+    paths:
+      - apply_seo.py
+      - generate_social_preview.py
+      - .github/workflows/publish-seo.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: lennar-controlled-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install image dependency
+        run: python -m pip install pillow
+      - name: Apply metadata and generate social preview
+        run: |
+          python apply_seo.py index.html
+          python generate_social_preview.py
+          python seo-audit.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text()
+          assert s.count('MCCOY_SEO_START')==1
+          assert s.count('MCCOY_SEO_END')==1
+          assert 'https://www.facebook.com/JusRealtor' in s
+          assert 'https://www.linkedin.com/in/justinmccoyrealtor' in s
+          assert Path('og-preview.png').exists()
+          PY
+      - name: Publish SEO-only changes
+        run: |
+          git config user.name "McCoy SEO Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html og-preview.png
+          if git diff --cached --quiet; then
+            echo "SEO metadata already up to date"
+          else
+            git commit -m "Publish McCoy Real Estate SEO metadata and preview"
+            git push origin HEAD:main
+          fi
