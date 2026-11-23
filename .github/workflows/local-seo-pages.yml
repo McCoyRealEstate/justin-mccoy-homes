@@ -27,7 +27,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           from xml.etree import ElementTree as ET
-          assert len(list(Path('areas').glob('*.html'))) == 6
+          assert len(list(Path('areas').glob('*.html'))) == 9
           ET.parse('sitemap.xml')
           for p in Path('areas').glob('*.html'):
             s=p.read_text()
