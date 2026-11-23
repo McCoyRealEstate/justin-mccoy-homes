@@ -172,7 +172,7 @@ try:
             fee_unknown.append({"lot":k,"collection":col})
         LU[k]=url
         if home!=old:changed+=1
-        if not is_soon and safephoto(photo(src)):
+        if safephoto(photo(src)):
             source=photo(src)
             try:
                 if source not in photo_cache:photo_cache[source]=image_data(source)
@@ -185,7 +185,6 @@ try:
                 pname=str(home.get("pl") or "").lower().strip()
                 if pname:
                     PLANPH[cid+"|"+pname]=idx
-                    PLANPH.setdefault(pname,idx)
             except Exception as exc:
                 photo_failed+=1
                 report["warnings"].append("Photo download failed for "+k+": "+str(exc)[:100])
