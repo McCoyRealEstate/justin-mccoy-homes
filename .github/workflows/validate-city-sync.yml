@@ -2,6 +2,7 @@ name: Validate Inventory City Sync
 on:
   pull_request:
     paths:
+      - generate_community_pages.py
       - prepare_city_inventory.py
       - generate_local_pages.py
       - .github/workflows/validate-city-sync.yml
@@ -18,6 +19,7 @@ jobs:
           python -m py_compile prepare_city_inventory.py generate_local_pages.py
           python prepare_city_inventory.py index.html /tmp/city-inventory.json
           python generate_local_pages.py /tmp/city-inventory.json
+          python generate_community_pages.py /tmp/city-inventory.json
           python - <<'PY'
           from pathlib import Path
           import json
@@ -26,5 +28,5 @@ jobs:
           assert d['verified_count']>=100
           assert len(d['listings'])>=15
           assert len(list(Path('areas').glob('*.html'))) == 9
-          assert len(ET.parse('sitemap.xml').getroot())==10
+          assert len(ET.parse('sitemap.xml').getroot())==16
           PY
