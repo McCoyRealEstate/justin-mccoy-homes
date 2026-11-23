@@ -23,12 +23,21 @@ jobs:
       - name: Build preview from PR branch
         run: |
           cd proposed
+          python -m py_compile generate_community_pages.py
           python generate_local_pages.py
           python generate_community_pages.py
           python - <<'PY'
           from pathlib import Path
           pages=list(Path('communities').glob('*.html'))
           assert len(pages)==6, len(pages)
+          for page in pages:
+              if page.name == 'index.html': continue
+              html=page.read_text()
+              assert 'class="home-card"' in html, page
+              assert 'id="filter-plan"' in html, page
+              assert 'Request a Virtual Tour' in html, page
+              assert 'Your Next Chapter Starts Here.' in html, page
+              assert 'Mccartney' not in html, page
           for page in pages:
               html=page.read_text()
               html=html.replace('<head>','<head><meta name="robots" content="noindex,nofollow">',1)
