@@ -1,0 +1,48 @@
+name: Local SEO Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - generate_local_pages.py
+      - .github/workflows/local-seo-pages.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: lennar-controlled-publish
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Generate and validate location pages
+        run: |
+          python generate_local_pages.py
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          assert len(list(Path('areas').glob('*.html'))) == 6
+          ET.parse('sitemap.xml')
+          for p in Path('areas').glob('*.html'):
+            s=p.read_text()
+            assert '<link rel="canonical"' in s
+            assert '<h1>' in s
+            assert 'https://jus3d.com/' in s
+          PY
+      - name: Publish generated pages
+        run: |
+          git config user.name "McCoy SEO Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add areas sitemap.xml
+          if git diff --cached --quiet; then
+            echo "Local SEO pages already up to date"
+          else
+            git commit -m "Publish Central Florida local SEO pages"
+            git push origin HEAD:main
+          fi
