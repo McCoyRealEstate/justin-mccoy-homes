@@ -2,6 +2,10 @@ name: Lennar Phase 8 - Automatic Refresh (Every 2 Hours)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lennar-phase8-auto-refresh.yml'
   schedule:
     - cron: '17 */2 * * *'
 
