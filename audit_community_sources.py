@@ -16,7 +16,7 @@ def read(url):
 def community_url(url):
     p=urlparse(urljoin(BASE+"/",url or ""))
     parts=p.path.strip("/").split("/")
-    if p.hostname not in ("www.lennar.com","lennar.com") or parts[:4]!=["new-homes","florida","orlando"][:4]: return None
+    if p.hostname not in ("www.lennar.com","lennar.com") or parts[:3]!=["new-homes","florida","orlando"]: return None
     if len(parts)<5 or parts[3] in ("promo","brochure"): return None
     return BASE+"/"+"/".join(parts[3:5])
 def candidates(state,soup):
