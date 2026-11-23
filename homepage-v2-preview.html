@@ -17,8 +17,41 @@ fetch('/data/inventory.json?preview='+Date.now(),{cache:'no-store'}).then(r=>{if
 (function(){
 const norm=s=>String(s||'').toLowerCase().trim();const slug=s=>norm(s).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');const esc2=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const photos={"Sugarloaf Ridge":"https://photos.zillowstatic.com/fp/6fc2e9573646eb0ed3032341ab21b344-cc_ft_1536.jpg","Waterlin":"https://img.jome.com/images/height_600/plain/community_image/335afe7dba052d36601b23f3198f97b2fdc7a1c7d46eb7d42b4c506e0cc8e8e4.jpg","Waterstone":"https://nhs-dynamic-secure.akamaized.net/Images/Homes/Lennar2025/101452743-251029.jpg?format=jpg&maxheight=443&maxwidth=807&progressive=true","Meadow Pointe":"https://nhs-dynamic-secure.akamaized.net/Images/Homes/Lennar2025/101453273-251029.jpg?format=jpg&maxheight=900&maxwidth=1815&progressive=true","Hidden Ridge":"https://nhs-dynamic-secure.akamaized.net/Images/Homes/Lennar2025/101452532-251029.jpg?format=jpg&maxwidth=5760&progressive=true"};const known=new Set(['meadow-pointe','hidden-ridge','sugarloaf-ridge','waterlin','waterstone']);
+
+// Reuse the original homepage's protected photo maps. Never edit its data or refresh workflow.
+const originalPhotos=new Map();
+const normalizedName=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function photoUrl(value){
+  if(typeof value==='string')return /^https?:\/\//i.test(value)||value.startsWith('/')?value:null;
+  if(value&&typeof value==='object')return photoUrl(value.url||value.src||value.image||value.photo);
+  return null;
+}
+function indexPhotos(map){
+  if(!map||typeof map!=='object')return;
+  for(const [key,val] of Object.entries(map)){
+    const url=photoUrl(val);
+    if(url&&normalizedName(key))originalPhotos.set(normalizedName(key),url);
+  }
+}
+async function loadOriginalPhotos(){
+  try{
+    const response=await fetch('/index.html?photo-map='+Date.now(),{cache:'no-store'});
+    if(!response.ok)throw Error('Original photo map unavailable');
+    const html=await response.text();
+    for(const name of ['IMG','PH','PLANPH','HIMG']){
+      const match=new RegExp('(?:^|\\n)\\s*const\\s+'+name+'\\s*=\\s*','m').exec(html);
+      if(!match)continue;
+      try{indexPhotos(JSON.parse(html.slice(match.index+match[0].length)))}catch(e){}
+    }
+    if(groups.length)draw();
+  }catch(e){/* Keep verified fallback photos; never block inventory rendering. */}
+}
+function communityPhoto(name){
+  return originalPhotos.get(normalizedName(name))||photos[name]||null;
+}
+loadOriginalPhotos();
 let groups=[];
-function draw(){const q=norm(document.getElementById('community-query').value),city=document.getElementById('community-city').value;const matching=groups.filter(g=>(!q||norm(g.name+' '+g.city).includes(q))&&(!city||g.city===city));document.getElementById('community-count').textContent=matching.length+' communities matching your search';document.getElementById('community-results').innerHTML=matching.map(g=>{const path=slug(g.name),citySlug=slug(g.city==='Saint Cloud'?'St. Cloud':g.city);const url=known.has(path)?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(photos[g.name]?'photo':'')+'">'+(photos[g.name]?'<img loading="lazy" src="'+esc2(photos[g.name])+'" alt="'+esc2(g.name)+' community">':esc2(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc2(g.name)+'</h3><p>'+g.count+' homes in inventory · From '+(g.min?':'contact for pricing')+'</p><a href="'+url+'" data-community="'+esc2(g.name)+'" data-city="'+esc2(g.city)+'">'+(known.has(path)?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No communities match. Try another city or name.</p>';}
+function draw(){const q=norm(document.getElementById('community-query').value),city=document.getElementById('community-city').value;const matching=groups.filter(g=>(!q||norm(g.name+' '+g.city).includes(q))&&(!city||g.city===city));document.getElementById('community-count').textContent=matching.length+' communities matching your search';document.getElementById('community-results').innerHTML=matching.map(g=>{const path=slug(g.name),citySlug=slug(g.city==='Saint Cloud'?'St. Cloud':g.city);const url=known.has(path)?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(communityPhoto(g.name)?'photo':'')+'">'+(communityPhoto(g.name)?'<img loading="lazy" src="'+esc2(communityPhoto(g.name))+'" alt="'+esc2(g.name)+' community">':esc2(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc2(g.name)+'</h3><p>'+g.count+' homes in inventory · From '+(g.min?':'contact for pricing')+'</p><a href="'+url+'" data-community="'+esc2(g.name)+'" data-city="'+esc2(g.city)+'">'+(known.has(path)?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No communities match. Try another city or name.</p>';}
 fetch('/data/inventory.json?communities='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Inventory unavailable');return r.json()}).then(d=>{const map=new Map();(d.listings||[]).forEach(h=>{const name=String(h.community||'').trim(),city=String(h.city||'').trim();if(!name)return;const key=name+'|'+city;if(!map.has(key))map.set(key,{name,city,count:0,min:null});const g=map.get(key);g.count++;if(typeof h.price==='number')g.min=g.min===null?h.price:Math.min(g.min,h.price)});groups=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name));[...new Set(groups.map(g=>g.city))].sort().forEach(c=>document.getElementById('community-city').add(new Option(c,c)));draw()}).catch(e=>document.getElementById('community-count').textContent='Featured communities shown · live community index could not load');
 document.getElementById('community-query').addEventListener('input',draw);document.getElementById('community-city').addEventListener('change',draw);document.getElementById('community-reset').addEventListener('click',()=>{document.getElementById('community-query').value='';document.getElementById('community-city').value='';draw()});document.getElementById('community-results').addEventListener('click',e=>{const a=e.target.closest('a[data-community]');if(!a||a.getAttribute('href')!=='#homes')return;document.getElementById('q').value=a.dataset.community;document.getElementById('city').value=a.dataset.city;document.getElementById('filters').dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));});
 })();
