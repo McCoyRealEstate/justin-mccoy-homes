@@ -1,0 +1,42 @@
+name: SEO Integration Validation
+on:
+  pull_request:
+    paths:
+      - apply_seo.py
+      - generate_social_preview.py
+      - lennar_phase8_finalize.py
+      - .github/workflows/lennar-phase8-auto-refresh.yml
+      - .github/workflows/seo-integration-validation.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pillow
+      - name: Compile scripts and validate SEO on synthetic HTML
+        run: |
+          python -m py_compile apply_seo.py generate_social_preview.py lennar_phase8_finalize.py
+          printf '<!doctype html><html><head><title>Old Title</title></head><body>UNCHANGED</body></html>' > /tmp/seo-test.html
+          python apply_seo.py /tmp/seo-test.html
+          python apply_seo.py /tmp/seo-test.html
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('/tmp/seo-test.html').read_text()
+          assert s.count('MCCOY_SEO_START')==1
+          assert s.count('<title>')==1
+          assert 'https://jus3d.com/' in s
+          assert 'https://www.facebook.com/JusRealtor' in s
+          assert 'https://www.linkedin.com/in/justinmccoyrealtor' in s
+          assert s.endswith('<body>UNCHANGED</body></html>')
+          PY
+          python generate_social_preview.py
+          python - <<'PY'
+          from PIL import Image
+          with Image.open('og-preview.png') as im:
+            assert im.size==(1200,630)
+          PY
