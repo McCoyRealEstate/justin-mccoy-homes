@@ -22,7 +22,7 @@ for h in D['h']:
     lot=str(h['lot']);cm=h['cm'];plan=str(h.get('pl','')).lower()
     idx=next((HIMG[k] for k in (lot,lot.lower(),lot.upper()) if k in HIMG),None)
     valid=lambda x:isinstance(x,int) and 0<=x<len(PH) and bool(PH[x])
-    fallback=PLANPH.get(cm+'|'+plan,PLANPH.get(plan))
+    fallback=PLANPH.get(cm+'|'+plan)
     if not(valid(idx) or valid(fallback) or cm in IMG):fail.append(lot)
 if fail:raise SystemExit('No photo fallback for: '+','.join(fail))
 (folder/'index-phase8-candidate.html').write_text(dst)
