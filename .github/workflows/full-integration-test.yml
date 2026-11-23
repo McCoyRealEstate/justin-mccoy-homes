@@ -39,7 +39,7 @@ jobs:
           python verify_lennar_preview.py
           python lennar_phase6_dry_run.py
           python lennar_phase8_finalize.py
-          python validate_photo_hierarchy.py
+          python validate_photo_hierarchy.py lennar_preview/index-phase8-candidate.html
       - name: Validate candidate and prepare change report
         run: |
           python - <<'PY'
@@ -88,6 +88,10 @@ jobs:
           data=json.loads(Path('lennar_preview/city-inventory.json').read_text())
           assert len(data['communities'])==json.loads(Path('lennar_preview/phase8-finalize-report.json').read_text())['communities']
           assert all((Path('communities')/(c['id']+'.html')).exists() for c in data['communities'])
+          for c in data['communities']:
+              if not any(h['community_id']==c['id'] for h in data['homes']):
+                  page=(Path('communities')/(c['id']+'.html')).read_text()
+                  assert 'No homes currently listed' in page and 'Explore other available communities' in page
           PY
       - name: Upload backup and audit report
         if: always()
