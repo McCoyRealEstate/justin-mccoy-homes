@@ -133,7 +133,8 @@ try:
         ch=objects(state,"HomesiteType")
         if not ch and not any(canon(o.get("url"))==canon(c["url"]) for o in objects(state,"CommunityType")):fail("Community page unverified: "+c["id"])
         page_states[c["id"]]=state
-        exact=[o for o in objects(state,"CommunityType") if canon(o.get("url"))==canon(c["url"])]
+        exact=[o for o in objects(state,"CommunityType") if cmid(o.get("url"))==c["id"]]
+        exact.sort(key=lambda o: (canon(o.get("url"))!=canon(c["url"]),len(canon(o.get("url"))),canon(o.get("url"))))
         monument=None
         for obj in exact:
             gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
@@ -147,6 +148,8 @@ try:
                 if IMG.get(c["id"])!=uri:
                     IMG[c["id"]]=uri
                     report["monument_updates"].append({"community":c["id"],"source":monument})
+                else:
+                    report.setdefault("monument_unchanged",[]).append(c["id"])
             except Exception as exc:
                 report["monument_retained"].append({"community":c["id"],"reason":str(exc)[:120]})
         else:
