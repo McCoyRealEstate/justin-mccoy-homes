@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - generate_community_pages.py
       - generate_local_pages.py
       - .github/workflows/local-seo-pages.yml
   workflow_dispatch:
