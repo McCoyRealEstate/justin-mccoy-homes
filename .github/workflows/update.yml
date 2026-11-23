@@ -10,9 +10,8 @@ on:
         default: false
 
   schedule:
-    # Eastern Time: 9:30 AM, 3:30 PM, 7:30 PM
-    # Includes both EST and EDT candidate hours.
-    - cron: '30 0,13,14,19,20,23 * * *'
+    # Every two hours, at :30 UTC (GitHub Actions schedules use UTC).
+    - cron: '30 */2 * * *'
 
 permissions:
   contents: write
@@ -27,36 +26,16 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Check Eastern schedule
-        id: timing
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            ET_HOUR=$(TZ=America/New_York date +%H)
-            if [[ "$ET_HOUR" == "09" || "$ET_HOUR" == "15" || "$ET_HOUR" == "19" ]]; then
-              echo "run=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "run=false" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
       - uses: actions/checkout@v4
-        if: steps.timing.outputs.run == 'true'
 
       - uses: actions/setup-python@v5
-        if: steps.timing.outputs.run == 'true'
         with:
           python-version: '3.12'
 
       - name: Install dependencies
-        if: steps.timing.outputs.run == 'true'
         run: python -m pip install requests beautifulsoup4
 
       - name: Audit or publish verified inventory
-        if: steps.timing.outputs.run == 'true'
         env:
           EVENT_NAME: ${{ github.event_name }}
           MANUAL_PUBLISH: ${{ inputs.publish }}
@@ -69,8 +48,7 @@ jobs:
 
       - name: Commit verified inventory
         if: >-
-          steps.timing.outputs.run == 'true' &&
-          (github.event_name == 'schedule' || inputs.publish == true)
+          github.event_name == 'schedule' || inputs.publish == true
         run: |
           git config user.name 'inventory-bot'
           git config user.email 'inventory-bot@users.noreply.github.com'
