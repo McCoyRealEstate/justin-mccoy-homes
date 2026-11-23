@@ -129,7 +129,6 @@ try:
         cid=h["cm"];plan=str(h.get("pl") or "").strip().lower()
         key=cid+"|"+plan
         if key in planph:typ="same_community_plan";idx=planph[key]
-        elif plan in planph:typ="general_plan";idx=planph[plan]
         elif cid in img:typ="community_monument";idx=None
         else:typ="missing_fallback";idx=None
         record={"lot":h["lot"],"address":h.get("a"),"plan":h.get("pl"),"community":cid,"fallback_type":typ}
