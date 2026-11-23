@@ -20,36 +20,47 @@ const photos={"Sugarloaf Ridge":"https://photos.zillowstatic.com/fp/6fc2e9573646
 
 // Reuse the original homepage's protected photo maps. Never edit its data or refresh workflow.
 const originalPhotos=new Map();
-const blockedCommunityPhotos=new Set(['waterstone']);
 const normalizedName=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-function photoUrl(value){
-  if(typeof value==='string')return /^https?:\/\//i.test(value)||value.startsWith('/')?value:null;
-  if(value&&typeof value==='object')return photoUrl(value.url||value.src||value.image||value.photo);
+function readOriginalConst(html,name){
+  const m=new RegExp('(?:^|\\n)\\s*const\\s+'+name+'\\s*=\\s*','m').exec(html);
+  if(!m)return null;
+  const start=m.index+m[0].length;
+  const opener=html[start],closer=opener==='{'?'}':opener==='['?']':null;
+  if(!closer)return null;
+  let depth=0,quoted=false,escaped=false;
+  for(let i=start;i<html.length;i++){
+    const ch=html[i];
+    if(quoted){if(escaped)escaped=false;else if(ch==='\\\\')escaped=true;else if(ch==='"')quoted=false;continue;}
+    if(ch==='"'){quoted=true;continue;}
+    if(ch===opener)depth++;
+    if(ch===closer){depth--;if(depth===0)return JSON.parse(html.slice(start,i+1));}
+  }
   return null;
 }
-function indexPhotos(map){
-  if(!map||typeof map!=='object')return;
-  for(const [key,val] of Object.entries(map)){
-    const url=photoUrl(val);
-    if(url&&normalizedName(key))originalPhotos.set(normalizedName(key),url);
-  }
+function photoUrl(value,library){
+  if(Number.isInteger(value))return photoUrl(library[value],library);
+  if(typeof value==='string')return /^(https?:\/\/|data:image\/|\/)/i.test(value)?value:null;
+  if(value&&typeof value==='object')return photoUrl(value.url||value.src||value.image||value.photo,library);
+  return null;
 }
 async function loadOriginalPhotos(){
   try{
     const response=await fetch('/index.html?photo-map='+Date.now(),{cache:'no-store'});
     if(!response.ok)throw Error('Original photo map unavailable');
     const html=await response.text();
-    for(const name of ['IMG','PH','PLANPH','HIMG']){
-      const match=new RegExp('(?:^|\\n)\\s*const\\s+'+name+'\\s*=\\s*','m').exec(html);
-      if(!match)continue;
-      try{indexPhotos(JSON.parse(html.slice(match.index+match[0].length)))}catch(e){}
+    const D=readOriginalConst(html,'D'),IMG=readOriginalConst(html,'IMG'),PH=readOriginalConst(html,'PH');
+    if(!D||!IMG||!PH)throw Error('Missing original community photo data');
+    for(const c of D.c||[]){
+      const name=c.n||c.name||c.community;
+      const id=c.id;
+      const url=photoUrl(IMG[id]??IMG[name],PH);
+      if(name&&url)originalPhotos.set(normalizedName(name),url);
     }
     if(groups.length)draw();
-  }catch(e){/* Keep verified fallback photos; never block inventory rendering. */}
+  }catch(e){console.warn('Original community photos not available:',e.message);}
 }
 function communityPhoto(name){
-  if(blockedCommunityPhotos.has(normalizedName(name)))return null;
-  return originalPhotos.get(normalizedName(name))||photos[name]||null;
+  return originalPhotos.get(normalizedName(name))|| (normalizedName(name)==='waterstone'?null:photos[name])||null;
 }
 loadOriginalPhotos();
 let groups=[];
