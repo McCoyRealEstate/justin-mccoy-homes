@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Create priority community landing pages from the same verified city inventory.
-Run AFTER generate_local_pages.py. No prices or availability claims.
+Run AFTER generate_local_pages.py. No unverified prices or availability claims. Keep previews in sync with generator.
 """
 import json,sys
 from pathlib import Path
