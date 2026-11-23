@@ -73,6 +73,16 @@ jobs:
             'identical_to_baseline':src==candidate},indent=2))
           PY
           node --check lennar_preview/phase8-scripts.js
+      - name: Build city pages from the same verified candidate
+        run: |
+          python prepare_city_inventory.py lennar_publish/index-proposed-phase8.html lennar_preview/city-inventory.json
+          python generate_local_pages.py lennar_preview/city-inventory.json
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          assert len(list(Path('areas').glob('*.html'))) == 9
+          assert len(ET.parse('sitemap.xml').getroot()) == 10
+          PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6
         with:
@@ -96,14 +106,18 @@ jobs:
           assert report['passed']
           assert hashlib.sha256(before).hexdigest()==report['baseline_sha256']
           assert hashlib.sha256(after).hexdigest()==report['candidate_sha256']
-          if before==after:
-              print('No changes; skip publishing')
-          else:
+          if before!=after:
               Path('index.html').write_bytes(after)
-              subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
-              subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-              subprocess.run(['git','add','index.html'],check=True)
-              subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory (Phase 8)'],check=True)
+          subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
+          subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
+          subprocess.run(['git','add','index.html','areas','sitemap.xml'],check=True)
+          changes=subprocess.run(['git','diff','--cached','--quiet'])
+          if changes.returncode==0:
+              print('No verified inventory or city-page changes; skip publishing')
+          elif changes.returncode==1:
+              subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory and city pages'],check=True)
               subprocess.run(['git','push','origin','HEAD:main'],check=True)
-              print('Published verified inventory; revert commit to restore if necessary')
+              print('Published homepage and city pages together from verified candidate')
+          else:
+              raise SystemExit('Could not inspect staged changes')
           PY
