@@ -38,7 +38,7 @@ jobs:
           python build_lennar_preview.py
           python verify_lennar_preview.py
           python lennar_phase6_dry_run.py
-          python lennar_phase8_finalize.py
+          python lennar_phase8_finalize.py\n          python generate_social_preview.py\n          python seo-audit.py
       - name: Validate candidate and prepare change report
         run: |
           python - <<'PY'
@@ -102,7 +102,7 @@ jobs:
               Path('index.html').write_bytes(after)
               subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
               subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-              subprocess.run(['git','add','index.html'],check=True)
+              subprocess.run(['git','add','index.html','og-preview.png'],check=True)
               subprocess.run(['git','commit','-m','Auto-refresh verified Lennar inventory (Phase 8)'],check=True)
               subprocess.run(['git','push','origin','HEAD:main'],check=True)
               print('Published verified inventory; revert commit to restore if necessary')
