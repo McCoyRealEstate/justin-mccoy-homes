@@ -77,11 +77,12 @@ jobs:
         run: |
           python prepare_city_inventory.py lennar_publish/index-proposed-phase8.html lennar_preview/city-inventory.json
           python generate_local_pages.py lennar_preview/city-inventory.json
+          python generate_community_pages.py lennar_preview/city-inventory.json
           python - <<'PY'
           from pathlib import Path
           from xml.etree import ElementTree as ET
           assert len(list(Path('areas').glob('*.html'))) == 9
-          assert len(ET.parse('sitemap.xml').getroot()) == 10
+          assert len(ET.parse('sitemap.xml').getroot()) == 16
           PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6
@@ -110,7 +111,7 @@ jobs:
               Path('index.html').write_bytes(after)
           subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
           subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-          subprocess.run(['git','add','index.html','areas','sitemap.xml'],check=True)
+          subprocess.run(['git','add','index.html','areas','communities','sitemap.xml'],check=True)
           changes=subprocess.run(['git','diff','--cached','--quiet'])
           if changes.returncode==0:
               print('No verified inventory or city-page changes; skip publishing')
