@@ -24,6 +24,7 @@ jobs:
       - name: Generate and validate location pages
         run: |
           python generate_local_pages.py
+          python generate_community_pages.py
           python - <<'PY'
           from pathlib import Path
           from xml.etree import ElementTree as ET
@@ -39,7 +40,7 @@ jobs:
         run: |
           git config user.name "McCoy SEO Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add areas sitemap.xml
+          git add areas communities sitemap.xml
           if git diff --cached --quiet; then
             echo "Local SEO pages already up to date"
           else
