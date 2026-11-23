@@ -5,6 +5,7 @@ on:
       - prepare_city_inventory.py
       - generate_local_pages.py
       - .github/workflows/validate-city-sync.yml
+      - .github/workflows/lennar-phase8-auto-refresh.yml
 permissions:
   contents: read
 jobs:
