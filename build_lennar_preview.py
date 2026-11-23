@@ -97,6 +97,9 @@ try:
     from audit_community_sources import read as audit_read, candidates
     directory, soup = audit_read(BASE.rstrip("/"))
     discovered = candidates(directory,soup)
+    promo_directory,promo_soup=audit_read(INV)
+    discovered |= candidates(promo_directory,promo_soup)
+    if len(discovered)<max(10,len(D["c"])//2):fail("Community discovery appears truncated")
     known = {cmid(c["url"]) for c in D["c"]}
     report["community_additions"]=[]
     for url in sorted(discovered):
@@ -114,6 +117,32 @@ try:
         IMG[cid]=image_data(image)
         known.add(cid)
         report["community_additions"].append(cid)
+    report["community_removal_candidates"]=[]
+    report["community_removals"]=[]
+    discovered_ids={cmid(u) for u in discovered}
+    def eligible_removal(cid,discovered_ids,statuses,active_lots):
+        return cid not in discovered_ids and bool(statuses) and all(x in {"SOLD_OUT","DISCONTINUED","CLOSED"} for x in statuses) and not active_lots
+    assert not eligible_removal("test",{"test"},{"SOLD_OUT"},[])
+    assert not eligible_removal("test",set(),set(),[])
+    assert not eligible_removal("test",set(),{"SOLD_OUT"},["active"])
+    assert eligible_removal("test",set(),{"SOLD_OUT"},[])
+    for c in list(D["c"]):
+        cid=c["id"]
+        if cid in discovered_ids:continue
+        try:
+            state=read(c["url"])
+            records=[o for o in objects(state,"CommunityType") if cmid(o.get("url"))==cid]
+            statuses={str(o.get("status") or "").upper() for o in records}
+            active=[h for h in objects(state,"HomesiteType") if h.get("status") in ("MOVE_IN_READY","UNDER_CONSTRUCTION","COMING_SOON")]
+            baseline_lots=[h for h in D["h"] if h["cm"]==cid]
+            promo_lots=[h for h in objects(promo_directory,"HomesiteType") if cmid(coll(promo_directory,h))==cid and h.get("status") in ("MOVE_IN_READY","UNDER_CONSTRUCTION","COMING_SOON")]
+            approved=eligible_removal(cid,discovered_ids,statuses,active+baseline_lots+promo_lots)
+            report["community_removal_candidates"].append({"community":cid,"statuses":sorted(statuses),"approved":approved})
+            if approved:
+                D["c"].remove(c);IMG.pop(cid,None)
+                report["community_removals"].append(cid)
+        except Exception as exc:
+            report["community_removal_candidates"].append({"community":cid,"approved":False,"reason":str(exc)[:150]})
     communities={c["id"]:c for c in D["c"]}
     oldhomes={lot(h):h for h in D["h"]}
     if len(oldhomes)!=len(D["h"]):fail("Duplicate baseline lot IDs")
