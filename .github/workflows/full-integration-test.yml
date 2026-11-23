@@ -83,7 +83,11 @@ jobs:
           from pathlib import Path
           from xml.etree import ElementTree as ET
           assert len(list(Path('areas').glob('*.html'))) == 9
-          assert len(ET.parse('sitemap.xml').getroot()) == 16
+          assert len(ET.parse('sitemap.xml').getroot()) >= 16
+          import json
+          data=json.loads(Path('lennar_preview/city-inventory.json').read_text())
+          assert len(data['communities'])==json.loads(Path('lennar_preview/phase8-finalize-report.json').read_text())['communities']
+          assert all((Path('communities')/(c['id']+'.html')).exists() for c in data['communities'])
           PY
       - name: Upload backup and audit report
         if: always()
