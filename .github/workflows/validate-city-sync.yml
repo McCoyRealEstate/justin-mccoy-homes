@@ -1,0 +1,30 @@
+name: Validate Inventory City Sync
+on:
+  pull_request:
+    paths:
+      - prepare_city_inventory.py
+      - generate_local_pages.py
+      - .github/workflows/validate-city-sync.yml
+      - .github/workflows/lennar-phase8-auto-refresh.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build city pages from actual published inventory
+        run: |
+          python -m py_compile prepare_city_inventory.py generate_local_pages.py
+          python prepare_city_inventory.py index.html /tmp/city-inventory.json
+          python generate_local_pages.py /tmp/city-inventory.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from xml.etree import ElementTree as ET
+          d=json.loads(Path('/tmp/city-inventory.json').read_text())
+          assert d['verified_count']>=100
+          assert len(d['listings'])>=15
+          assert len(list(Path('areas').glob('*.html'))) == 9
+          assert len(ET.parse('sitemap.xml').getroot())==10
+          PY
