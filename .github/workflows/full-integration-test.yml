@@ -93,6 +93,32 @@ jobs:
                   page=(Path('communities')/(c['id']+'.html')).read_text()
                   assert 'No homes currently listed' in page and 'Explore other available communities' in page
           PY
+      - name: Simulate archived community and verify recommendations
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/community-seo-registry.json')
+          registry=json.loads(p.read_text())
+          registry['test-archived-community']={'id':'test-archived-community','community':'Test Archived Community','city':'Groveland','url':''}
+          p.write_text(json.dumps(registry))
+          PY
+          python generate_community_pages.py lennar_preview/city-inventory.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('communities/test-archived-community.html')
+          html=p.read_text()
+          assert 'no longer in our active inventory directory' in html
+          assert 'Explore other available communities' in html
+          assert '/communities/test-archived-community.html' not in Path('communities/index.html').read_text()
+          p.unlink()
+          registry=Path('data/community-seo-registry.json')
+          d=json.loads(registry.read_text())
+          del d['test-archived-community']
+          registry.write_text(json.dumps(d,indent=2))
+          print('Archived community simulation passed')
+          PY
       - name: Upload backup and audit report
         if: always()
         uses: actions/upload-artifact@v6
@@ -108,5 +134,6 @@ jobs:
             areas/
             communities/
             sitemap.xml
+            data/community-seo-registry.json
           if-no-files-found: error
           retention-days: 90
