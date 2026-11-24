@@ -175,3 +175,5 @@ jobs:
 # Run collection and homesite ownership field audit
 
 # Validate audited ownership fee mapping
+
+# Audit official amenities and property features
