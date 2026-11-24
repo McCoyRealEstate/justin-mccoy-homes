@@ -72,6 +72,19 @@ jobs:
           (p/'index.html').write_text(s)
           assert (p/'inventory-source.html').read_bytes()==source
           assert '<iframe' not in s.lower()
+          # Prevent duplicate legacy and preview pages from competing with the canonical homepage.
+          (p/'inventory-source.html').write_text(re.sub(r'<head(?:\s[^>]*)?>',lambda m:m.group(0)+'<meta name="robots" content="noindex,follow">',source.decode('utf-8'),count=1,flags=re.I))
+          (p/'homepage-v2-preview.html').write_text('<!doctype html><html><head><meta name="robots" content="noindex"><link rel="canonical" href="https://jus3d.com/"><meta http-equiv="refresh" content="0;url=/"></head><body><a href="/">Visit the homepage</a></body></html>')
+          from xml.etree import ElementTree as ET
+          urls=[e.text for e in ET.parse(p/'sitemap.xml').findall('.//{*}loc')]
+          assert len(urls)==len(set(urls))
+          for url in urls:
+              assert url.startswith('https://jus3d.com/')
+              rel=url.removeprefix('https://jus3d.com/')
+              target=p/(rel+'index.html' if not rel or rel.endswith('/') else rel)
+              assert target.is_file(),url
+          assert '<meta name="description"' in s and 'application/ld+json' in s
+          assert (p/'og-preview.png').is_file()
           PY
           rm -rf /tmp/site/.github
       - uses: actions/upload-pages-artifact@v3
