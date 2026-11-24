@@ -88,12 +88,17 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           from xml.etree import ElementTree as ET
+          from bs4 import BeautifulSoup
           assert len(list(Path('areas').glob('*.html'))) == 9
           assert len(ET.parse('sitemap.xml').getroot()) >= 16
           import json
           data=json.loads(Path('lennar_preview/city-inventory.json').read_text())
           assert len(data['communities'])==json.loads(Path('lennar_preview/phase8-finalize-report.json').read_text())['communities']
           assert all((Path('communities')/(c['id']+'.html')).exists() for c in data['communities'])
+          assert all(h.get('photo') for h in data['homes'])
+          for c in data['communities']:
+              page=BeautifulSoup((Path('communities')/(c['id']+'.html')).read_text(),'html.parser')
+              assert all(card.select_one('.listing-photo img[src]') for card in page.select('.home-card')), c['id']
           PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6
