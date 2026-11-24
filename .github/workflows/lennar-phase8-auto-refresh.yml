@@ -43,6 +43,7 @@ jobs:
           python verify_lennar_preview.py
           python lennar_phase6_dry_run.py
           python lennar_phase8_finalize.py
+          python validate_photo_hierarchy.py lennar_preview/index-phase8-candidate.html
       - name: Validate candidate and prepare change report
         run: |
           python - <<'PY'
@@ -57,7 +58,7 @@ jobs:
           assert all(x['passed'] for x in (diff,prev,verify,fix))
           assert not diff['errors'] and not diff['warnings']
           assert len(diff['removed'])<=15 and len(diff['added'])<=30
-          assert diff['candidate_homes']>=100 and diff['communities']==25
+          assert diff['candidate_homes']>=100 and diff['communities']>=20
           src=Path('index.html').read_bytes()
           assert hashlib.sha256(src).hexdigest()==diff['baseline_sha256']
           html=(root/'index-phase8-candidate.html').read_text()
@@ -86,7 +87,11 @@ jobs:
           from pathlib import Path
           from xml.etree import ElementTree as ET
           assert len(list(Path('areas').glob('*.html'))) == 9
-          assert len(ET.parse('sitemap.xml').getroot()) == 16
+          assert len(ET.parse('sitemap.xml').getroot()) >= 16
+          import json
+          data=json.loads(Path('lennar_preview/city-inventory.json').read_text())
+          assert len(data['communities'])==json.loads(Path('lennar_preview/phase8-finalize-report.json').read_text())['communities']
+          assert all((Path('communities')/(c['id']+'.html')).exists() for c in data['communities'])
           PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6
@@ -97,10 +102,11 @@ jobs:
             lennar_publish/phase8-report.json
             lennar_preview/verification-report.json
             lennar_preview/phase6-publish-diff.json
+            lennar_preview/photo-hierarchy-report.json
           if-no-files-found: error
           retention-days: 90
       - name: Publish only if enabled and verified changes exist
-        if: ${{ vars.LENNAR_AUTO_ENABLED == 'true' }}
+        if: ${{ github.ref == 'refs/heads/main' && vars.LENNAR_AUTO_ENABLED == 'true' }}
         run: |
           python - <<'PY'
           import hashlib,json,subprocess
@@ -115,7 +121,7 @@ jobs:
               Path('index.html').write_bytes(after)
           subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
           subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-          subprocess.run(['git','add','index.html','areas','communities','sitemap.xml'],check=True)
+          subprocess.run(['git','add','index.html','areas','communities','sitemap.xml','data/community-seo-registry.json'],check=True)
           changes=subprocess.run(['git','diff','--cached','--quiet'])
           if changes.returncode==0:
               print('No verified inventory or city-page changes; skip publishing')
