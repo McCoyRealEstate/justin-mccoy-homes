@@ -31,6 +31,10 @@ jobs:
         run: |
           mkdir -p /tmp/site
           git archive HEAD | tar -x -C /tmp/site
+          git fetch --depth=1 origin design/community-landing-pages
+          mkdir -p /tmp/site/assets
+          git show FETCH_HEAD:assets/justin-mccoy-headshot.webp > /tmp/site/assets/justin-mccoy-headshot.webp
+          test -s /tmp/site/assets/justin-mccoy-headshot.webp
           python - <<'PY'
           from pathlib import Path
           p=Path('/tmp/site')
