@@ -22,7 +22,7 @@ const money=v=>Number.isFinite(Number(v))&&Number(v)>0?'$'+Number(v).toLocaleStr
 const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const known=new Set(['meadow-pointe','hidden-ridge','sugarloaf-ridge','waterlin','waterstone']);
-let homes=[],groups=[],lastUpdated='',verified=false,visibleLimit=30;
+let homes=[],groups=[],lastUpdated='',verified=false,visibleLimit=15;
 function parseConst(html,name){
  const match=new RegExp('(?:^|\\n)\\s*const\\s+'+name+'\\s*=\\s*','m').exec(html);
  if(!match)return null;
@@ -61,7 +61,7 @@ function render(){
  $('count').textContent=a.length+' homes matching your search · '+(verified?'Inventory updated every 2 hours':'Last available inventory · Confirm availability')+(lastUpdated?' · '+lastUpdated:'');
  $('results').innerHTML=a.slice(0,visibleLimit).map(h=>'<article class="home"><div class="visual">'+(h.photo?'<img loading="lazy" alt="'+esc(h.plan||'Home')+' exterior" src="'+esc(h.photo)+'" >':'<small>Central Florida · New Construction</small><strong>'+esc(h.plan||'New Home')+'</strong>')+'</div><div class="home-body"><div class="home-meta"><span class="status">'+esc(h.availability||'Check availability')+'</span><span class="price">'+money(h.price)+'</span></div><h3>'+esc(h.address)+'</h3><p class="loc">'+esc(h.community)+' · '+esc(h.city)+', FL</p><div class="specs"><span>'+esc(h.beds)+' Beds</span><span>'+esc(h.baths)+' Baths</span><span>'+Number(h.sqft||0).toLocaleString()+' Sq Ft</span></div><button type="button" data-id="'+homes.indexOf(h)+'">View Home Details</button></div></article>').join('')||'<p>No homes match those filters. Try broadening your search.</p>';
  $('more-homes').style.display=a.length>visibleLimit?'inline-block':'none';
- $('more-homes').textContent='Show More Homes ('+Math.min(30,a.length-visibleLimit)+' more)';
+ $('more-homes').textContent='Show More Homes ('+Math.min(15,a.length-visibleLimit)+' more)';
 }
 function draw(){
  const q=$('community-query').value.toLowerCase().trim(),city=$('community-city').value;
@@ -89,9 +89,9 @@ async function load(){
   try{const r=await fetch('/data/inventory.json?backup='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Backup unavailable');const d=await r.json();populate((d.listings||[]).map(h=>({...h,communityPhoto:null,photo:null})),{verified:false,updated:d.checked_at_utc||''});}catch(e){$('count').textContent='Inventory temporarily unavailable';$('community-count').textContent='Community inventory temporarily unavailable';}
  }
 }
-$('filters').addEventListener('submit',e=>{e.preventDefault();visibleLimit=30;render();$('homes').scrollIntoView({behavior:'smooth'})});
-$('more-homes').addEventListener('click',()=>{visibleLimit+=30;render()});
-$('sort').addEventListener('change',()=>{visibleLimit=30;render()});
+$('filters').addEventListener('submit',e=>{e.preventDefault();visibleLimit=15;render();$('homes').scrollIntoView({behavior:'smooth'})});
+$('more-homes').addEventListener('click',()=>{visibleLimit+=15;render()});
+$('sort').addEventListener('change',()=>{visibleLimit=15;render()});
 $('results').addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(!b)return;const h=homes[+b.dataset.id];$('detailbody').innerHTML='<div class="kicker">Home Details</div><h2>'+esc(h.plan)+'</h2><p><strong>'+esc(h.address)+'</strong><br>'+esc(h.community)+' · '+esc(h.city)+', FL</p><p><strong>'+money(h.price)+'</strong></p><p>'+esc(h.beds)+' bedrooms · '+esc(h.baths)+' bathrooms · '+esc(h.sqft)+' sq ft</p><p>'+esc(h.availability)+'</p><p>Homesite '+esc(h.lot||'—')+'</p><div class="hero-actions"><a class="pill" href="sms:+16893216555?body='+encodeURIComponent('Hi Justin, I am interested in '+h.address+' at '+h.community+'.')+'">Ask Justin About This Home</a>'+(h.officialUrl&&/^https:\/\//i.test(h.officialUrl)?'<a class="outline" style="color:#102d49;border-color:#c8a56a" target="_blank" rel="noopener noreferrer" href="'+esc(h.officialUrl)+'">View on Lennar.com</a>':'')+'</div>';$('detail').showModal()});
 $('close').addEventListener('click',()=>$('detail').close());
 $('detail').addEventListener('click',e=>{if(e.target===$('detail'))$('detail').close()});
