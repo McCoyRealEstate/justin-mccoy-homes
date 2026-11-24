@@ -17,7 +17,7 @@ def replace(text,key,value):
     return text[:a]+json.dumps(value,separators=(',',':'),ensure_ascii=False)+text[b:]
 
 def fingerprint(text):
-    for key in ('D','LU','PH','HIMG','PLANPH','IMPORTED','UPDATED'):
+    for key in ('D','LU','PH','HIMG','PLANPH','IMG','IMPORTED','UPDATED'):
         _,(a,b)=constant(text,key)
         text=text[:a]+'__DATA__'+text[b:]
     return text
@@ -32,8 +32,9 @@ try:
     baseline_sha=hashlib.sha256(original.encode()).hexdigest()
     if p4['result']['original_sha256']!=baseline_sha:raise ValueError('Baseline changed between preview and Phase 6')
     if fingerprint(original)!=fingerprint(candidate):raise ValueError('Website layout, branding or non-data code differs')
-    for key in ('IMG',):
-        if constant(original,key)[0]!=constant(candidate,key)[0]:raise ValueError('Community images changed')
+    oldimg=constant(original,'IMG')[0]; newimg=constant(candidate,'IMG')[0]
+    allowed_img=set(p4.get('community_additions',[]))|set(p4.get('community_removals',[]))|{x['community'] for x in p4.get('monument_updates',[])}
+    if any(oldimg.get(k)!=newimg.get(k) for k in set(oldimg)|set(newimg) if k not in allowed_img):raise ValueError('Unapproved monument change')
     old=constant(original,'D')[0]; new=copy.deepcopy(constant(candidate,'D')[0])
     oldhomes={str(h['lot']).lower():h for h in old['h']}
     newhomes={str(h['lot']).lower():h for h in new['h']}
@@ -66,7 +67,9 @@ try:
         lu.pop(lot,None);himg.pop(lot,None)
     if any(lot in lu or lot in himg or lot in remaining for lot in confirmed):raise ValueError('Removal left dangling home-specific references')
     if len(remaining)<100:raise ValueError('Unexpected inventory shrinkage')
-    if len(new['c'])!=len(old['c']) or len(new['c'])!=25:raise ValueError('Community count changed')
+    oldids={c['id'] for c in old['c']}; newids={c['id'] for c in new['c']}
+    if newids-oldids!=set(p4.get('community_additions',[])) or oldids-newids!=set(p4.get('community_removals',[])):raise ValueError('Unapproved community change')
+    if len(newids)!=len(new['c']) or len(newids)<20:raise ValueError('Invalid community directory')
     if any(h['cm'] not in {c['id'] for c in new['c']} for h in new['h']):raise ValueError('Orphan community')
     if any(h.get('np')!=1 for h in new['h'] if h.get('s') in ('S','C')):raise ValueError('Coming Soon price mask missing')
     for lot in remaining:
@@ -79,7 +82,7 @@ try:
     result=candidate
     for key,val in [('D',new),('LU',lu),('HIMG',himg)]:result=replace(result,key,val)
     if fingerprint(result)!=fingerprint(original):raise ValueError('Non-data website code changed')
-    if constant(result,'IMG')[0]!=constant(original,'IMG')[0]:raise ValueError('Community monuments changed')
+    if constant(result,'IMG')[0]!=newimg:raise ValueError('Community monuments changed')
     if 'if (h.s === "S" || h.s === "C") h.np = 1' not in result:raise ValueError('Runtime price guard absent')
     if len(result)>20_000_000:raise ValueError('HTML size safety limit exceeded')
     (OUT/'index-phase6-unpublished.html').write_text(result,encoding='utf-8')

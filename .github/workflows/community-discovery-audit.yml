@@ -1,0 +1,33 @@
+name: Community discovery audit (read only)
+on:
+  push:
+    branches: [inventory-community-audit]
+    paths:
+      - audit_community_sources.py
+      - build_lennar_preview.py
+      - .github/workflows/community-discovery-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests beautifulsoup4 pillow
+      - run: python audit_community_sources.py
+      - run: python build_lennar_preview.py
+      - run: python validate_photo_hierarchy.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: community-discovery-report
+          path: |
+            community-audit.json
+            lennar_preview/preview-report.json
+            lennar_preview/photo-hierarchy-report.json
+            lennar_preview/index-preview.html

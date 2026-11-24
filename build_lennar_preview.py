@@ -53,7 +53,7 @@ def photo(h):
     e=h.get("elevationImage") or {}
     return (e.get("image") or {}).get("url","") if isinstance(e,dict) and isinstance(e.get("image"),dict) else ""
 def safephoto(url):
-    return bool(url) and "comingsoon" not in url.lower() and urlparse(urljoin("https://cdn.lennar.com/",url)).hostname in ("cdn.lennar.com","www.lennar.com","lennar.com")
+    return bool(url) and "comingsoon" not in url.lower() and urlparse(urljoin("https://cdn.lennar.com/",url)).hostname in ("cdn.lennar.com","www.lennar.com","lennar.com","lennar.bynder.com")
 def image_data(url):
     u=urljoin("https://cdn.lennar.com/",url)
     r=s.get(u,timeout=45,headers={"Referer":"https://www.lennar.com/"},stream=True)
@@ -94,6 +94,56 @@ try:
         if not isinstance(value,dict):fail(name+" should be an object")
     if not isinstance(PH,list):fail("PH should be array")
     before=copy.deepcopy(D)
+    from audit_community_sources import read as audit_read, candidates
+    directory, soup = audit_read(BASE.rstrip("/"))
+    discovered = candidates(directory,soup)
+    promo_directory,promo_soup=audit_read(INV)
+    discovered |= candidates(promo_directory,promo_soup)
+    if len(discovered)<max(10,len(D["c"])//2):fail("Community discovery appears truncated")
+    known = {cmid(c["url"]) for c in D["c"]}
+    report["community_additions"]=[]
+    for url in sorted(discovered):
+        cid=cmid(url)
+        if cid in known: continue
+        state=read(url)
+        matches=[o for o in objects(state,"CommunityType") if canon(o.get("url"))==canon(url)]
+        if len(matches)!=1: fail("Unverified new community: "+url)
+        obj=matches[0]
+        name=obj.get("name")
+        hero=obj.get("heroImage") or {}
+        image=hero.get("url","")
+        if not name or not safephoto(image) or "monument" not in (image+" "+str(hero.get("alt",""))).lower(): fail("New community metadata incomplete: "+url)
+        D["c"].append({"id":cid,"n":name,"url":url,"city":url.rstrip("/").split("/")[-2].replace("-"," ").title()})
+        IMG[cid]=image_data(image)
+        known.add(cid)
+        report["community_additions"].append(cid)
+    report["community_removal_candidates"]=[]
+    report["community_removals"]=[]
+    discovered_ids={cmid(u) for u in discovered}
+    def eligible_removal(cid,discovered_ids,statuses,active_lots):
+        return cid not in discovered_ids and bool(statuses) and all(x in {"DISCONTINUED","CLOSED"} for x in statuses) and not active_lots
+    assert not eligible_removal("test",{"test"},{"SOLD_OUT"},[])
+    assert not eligible_removal("test",set(),set(),[])
+    assert not eligible_removal("test",set(),{"SOLD_OUT"},["active"])
+    assert not eligible_removal("test",set(),{"SOLD_OUT"},[])
+    assert eligible_removal("test",set(),{"DISCONTINUED"},[])
+    for c in list(D["c"]):
+        cid=c["id"]
+        if cid in discovered_ids:continue
+        try:
+            state=read(c["url"])
+            records=[o for o in objects(state,"CommunityType") if cmid(o.get("url"))==cid]
+            statuses={str(o.get("status") or "").upper() for o in records}
+            active=[h for h in objects(state,"HomesiteType") if h.get("status") in ("MOVE_IN_READY","UNDER_CONSTRUCTION","COMING_SOON")]
+            baseline_lots=[h for h in D["h"] if h["cm"]==cid]
+            promo_lots=[h for h in objects(promo_directory,"HomesiteType") if cmid(coll(promo_directory,h))==cid and h.get("status") in ("MOVE_IN_READY","UNDER_CONSTRUCTION","COMING_SOON")]
+            approved=eligible_removal(cid,discovered_ids,statuses,active+baseline_lots+promo_lots)
+            report["community_removal_candidates"].append({"community":cid,"statuses":sorted(statuses),"approved":approved})
+            if approved:
+                D["c"].remove(c);IMG.pop(cid,None)
+                report["community_removals"].append(cid)
+        except Exception as exc:
+            report["community_removal_candidates"].append({"community":cid,"approved":False,"reason":str(exc)[:150]})
     communities={c["id"]:c for c in D["c"]}
     oldhomes={lot(h):h for h in D["h"]}
     if len(oldhomes)!=len(D["h"]):fail("Duplicate baseline lot IDs")
@@ -106,11 +156,34 @@ try:
     page_states={}
     fees={}
     soon={}
+    report["monument_updates"]=[]
+    report["monument_retained"]=[]
     for c in D["c"]:
         state=read(c["url"])
         ch=objects(state,"HomesiteType")
-        if not ch:fail("Community page empty: "+c["id"])
+        if not ch and not any(canon(o.get("url"))==canon(c["url"]) for o in objects(state,"CommunityType")):fail("Community page unverified: "+c["id"])
         page_states[c["id"]]=state
+        exact=[o for o in objects(state,"CommunityType") if cmid(o.get("url"))==c["id"]]
+        exact.sort(key=lambda o: (canon(o.get("url"))!=canon(c["url"]),len(canon(o.get("url"))),canon(o.get("url"))))
+        monument=None
+        for obj in exact:
+            gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
+            for im in gallery:
+                if isinstance(im,dict) and safephoto(im.get("url")) and "monument" in (str(im.get("url"))+" "+str(im.get("alt"))).lower():
+                    monument=im["url"];break
+            if monument:break
+        if monument:
+            try:
+                uri=image_data(monument)
+                if IMG.get(c["id"])!=uri:
+                    IMG[c["id"]]=uri
+                    report["monument_updates"].append({"community":c["id"],"source":monument})
+                else:
+                    report.setdefault("monument_unchanged",[]).append(c["id"])
+            except Exception as exc:
+                report["monument_retained"].append({"community":c["id"],"reason":str(exc)[:120]})
+        else:
+            report["monument_retained"].append({"community":c["id"],"reason":"No explicitly identified monument in official hero gallery"})
         for obj in objects(state,"CommunityType"):
             url=canon(obj.get("url"))
             if url and cmid(url)==c["id"]:
@@ -172,7 +245,7 @@ try:
             fee_unknown.append({"lot":k,"collection":col})
         LU[k]=url
         if home!=old:changed+=1
-        if not is_soon and safephoto(photo(src)):
+        if safephoto(photo(src)):
             source=photo(src)
             try:
                 if source not in photo_cache:photo_cache[source]=image_data(source)
@@ -185,7 +258,6 @@ try:
                 pname=str(home.get("pl") or "").lower().strip()
                 if pname:
                     PLANPH[cid+"|"+pname]=idx
-                    PLANPH.setdefault(pname,idx)
             except Exception as exc:
                 photo_failed+=1
                 report["warnings"].append("Photo download failed for "+k+": "+str(exc)[:100])
@@ -200,7 +272,7 @@ try:
     for k,v in LU.items():
         if canon(v).split("/")[-1]!=str(k).lower():fail("Invalid listing link "+k)
     new=original
-    for key,value in (("D",D),("LU",LU),("PH",PH),("HIMG",HIMG),("PLANPH",PLANPH)):
+    for key,value in (("D",D),("LU",LU),("PH",PH),("HIMG",HIMG),("PLANPH",PLANPH),("IMG",IMG)):
         new=put(new,key,value)
     new=put(new,"IMPORTED",report["utc"])
     try:
@@ -211,7 +283,7 @@ try:
     # Exact preservation of all non-data code and community monuments.
     sentinel="__DATA_CONSTANT__"
     def skeleton(txt):
-        for key in ("D","LU","PH","HIMG","PLANPH","IMPORTED","UPDATED"):
+        for key in ("D","LU","PH","HIMG","PLANPH","IMG","IMPORTED","UPDATED"):
             _,(a,b)=line(txt,key)
             txt=txt[:a]+sentinel+txt[b:]
         return txt
