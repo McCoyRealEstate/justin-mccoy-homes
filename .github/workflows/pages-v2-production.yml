@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.first_deployment.outputs.page_url || steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -63,4 +63,11 @@ jobs:
           done
           exit 1
       - uses: actions/deploy-pages@v4
+        id: first_deployment
+        continue-on-error: true
+      - name: Allow Pages artifact indexing to settle
+        if: steps.first_deployment.outcome == 'failure'
+        run: sleep 30
+      - uses: actions/deploy-pages@v4
+        if: steps.first_deployment.outcome == 'failure'
         id: deployment
