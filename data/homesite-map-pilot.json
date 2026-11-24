@@ -15,6 +15,11 @@
       "type": "plat_approval_reference",
       "url": "https://www.groveland-fl.gov/AgendaCenter/ViewFile/Minutes/_09052024-1264",
       "resolution": "2024-89"
+    },
+    {
+      "type": "official_site_plan_pdf",
+      "url": "https://cdn.lennar.com/api/images/contentassets/da7d4c3348da452496b11b1b3f05388b/meadow_pointe_overall_siteplan_vert_flyer.pdf?d=20261119T152744",
+      "discovery": "site-map page embedded Apollo state"
     }
   ],
   "rules": {
@@ -50,5 +55,6 @@
       "y": 736,
       "verification": "visual reference only; not a surveyed location"
     }
-  ]
+  ],
+  "master_community_id": "m_2591"
 }
