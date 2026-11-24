@@ -99,20 +99,30 @@ jobs:
           def f(n,b=False,serif=False):
               return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/'+('DejaVuSerif' if serif else 'DejaVuSans')+('-Bold' if b else '')+'.ttf',n)
           d.text((60,55),'CENTRAL FLORIDA / NEW HOMES',font=f(22,True),fill=gold)
-          d.text((56,122),'Find a home.',font=f(65,serif=True),fill='white')
-          d.text((56,205),'Build your legacy.',font=f(58,serif=True),fill=gold)
+          d.text((56,112),'We build your home.',font=f(58,serif=True),fill='white')
+          d.text((56,190),'You build your legacy.',font=f(55,serif=True),fill=gold)
           d.line((60,310,750,310),fill=gold,width=2)
-          d.text((60,350),'Justin McCoy',font=f(39,True),fill='white')
-          d.text((60,410),'New Home Consultant | Lennar Orlando',font=f(23),fill='#d3e0eb')
-          d.text((60,530),'Jus3D.com',font=f(27,True),fill=gold)
+          import re, subprocess, tempfile
+          signature=re.search(r'<svg class="signature-mark"[^>]*>.*?</svg>',(p/'index.html').read_text(),re.S)
+          assert signature, 'Approved signature missing'
+          svg=signature.group().replace('currentColor','#ffffff').replace('viewBox="0 0 650 166"','width="650" height="166" viewBox="0 0 650 166"')
+          with tempfile.TemporaryDirectory() as td:
+              src=Path(td)/'signature.svg'; dst=Path(td)/'signature.png'
+              src.write_text(svg)
+              subprocess.run(['convert','-background','none',str(src),str(dst)],check=True)
+              sig=Image.open(dst).convert('RGBA')
+              sig.thumbnail((470,120),Image.Resampling.LANCZOS)
+              im.paste(sig,(60,330),sig)
+          d.text((60,465),'New Home Consultant | Lennar Orlando',font=f(23),fill='#d3e0eb')
+          d.text((60,550),'Jus3D.com',font=f(27,True),fill=gold)
           portrait=ImageOps.fit(Image.open(p/'assets/justin-mccoy-headshot.webp').convert('RGB'),(320,320))
           mask=Image.new('L',(320,320))
           ImageDraw.Draw(mask).ellipse((0,0,319,319),fill=255)
           d.ellipse((824,150,1160,486),fill=gold)
           im.paste(portrait,(832,158),mask)
-          im.save(p/'og-justin-mccoy-v2.png',optimize=True)
+          im.save(p/'og-justin-mccoy-v3.png',optimize=True)
           page=p/'index.html'
-          page.write_text(page.read_text().replace('https://jus3d.com/og-preview.png','https://jus3d.com/og-justin-mccoy-v2.png').replace('Find a Home. Build Your Legacy. | Jus3D','Find a Home. Build Your Legacy. | Justin McCoy').replace('<meta name="twitter:card"','<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Justin McCoy, Lennar New Home Consultant in Central Florida"><meta name="twitter:card"'))
+          page.write_text(page.read_text().replace('Find a Home. Build Your Legacy.','We Build Your Home. You Build Your Legacy.').replace('https://jus3d.com/og-preview.png','https://jus3d.com/og-justin-mccoy-v2.png').replace('Find a Home. Build Your Legacy. | Jus3D','Find a Home. Build Your Legacy. | Justin McCoy').replace('<meta name="twitter:card"','<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Justin McCoy, Lennar New Home Consultant in Central Florida"><meta name="twitter:card"'))
           PY
           python generate_property_previews.py /tmp/site
           python generate_city_experience.py /tmp/site
