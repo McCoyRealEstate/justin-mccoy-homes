@@ -47,6 +47,20 @@ listings=[{'community':c['community'],'city':c['city'],'verified_home_count':cou
 if not listings:raise SystemExit('No verified community listings')
 # Separate verified home details for community presentation. Preserve the original
 # community-level listings schema used by city SEO pages.
+def const(k):
+    m=re.search(r'(?m)^const\s+'+k+r'\s*=\s*',html)
+    return json.JSONDecoder().raw_decode(html[m.end():])[0]
+PH,HIMG,PLANPH,IMG=[const(k) for k in ('PH','HIMG','PLANPH','IMG')]
+def image(v):
+    if type(v) is int:v=PH[v] if 0<=v<len(PH) else None
+    return v if isinstance(v,str) and v.startswith(('data:image/','https://cdn.lennar.com/','https://lennar.bynder.com/','https://www.lennar.com/')) else ''
+def photo(h):
+    lot=str(h['lot'])
+    for k in (lot,lot.lower(),lot.upper()):
+        if image(HIMG.get(k)):return image(HIMG[k]),'Listing photo'
+    p=image(PLANPH.get(h['cm']+'|'+str(h.get('pl','')).strip().lower()))
+    if p:return p,'Same floor plan in this community'
+    return image(IMG.get(h['cm'])),'Community monument'
 home_listings=[]
 for h in homes:
     c=ids.get(h.get('cm'))
@@ -54,7 +68,10 @@ for h in homes:
     status=h.get('s')
     is_soon=status in ('S','C') or h.get('np')==1
     price=h.get('p')
+    photo_url,photo_label=photo(h)
+    assert photo_url, 'Missing photo for '+str(h['lot'])
     home_listings.append({
+        'photo':photo_url,'photo_label':photo_label,
         'community':c['community'],'city':c['city'],'community_id':c['id'],
         'lot':h.get('lot',''),'address':h.get('a',''),
         'plan':h.get('pl',''),'beds':h.get('bd'),
