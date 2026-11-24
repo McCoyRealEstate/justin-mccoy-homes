@@ -1,6 +1,10 @@
 name: Publish standalone Homepage V2
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Lennar Phase 8 - Automatic Refresh (Every 2 Hours)']
+    types: [completed]
+    branches: [main]
   push:
     branches: [main]
 permissions:
@@ -12,12 +16,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: main
       - uses: actions/configure-pages@v5
       - name: Assemble tested standalone site
         run: |
