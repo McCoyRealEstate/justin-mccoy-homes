@@ -2,7 +2,7 @@ name: Publish standalone Homepage V2
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ['Lennar Phase 8 - Automatic Refresh (Every 2 Hours)']
+    workflows: ['Lennar Phase 8 - Automatic Refresh (Every Hour)']
     types: [completed]
     branches: [main]
   push:
