@@ -1,0 +1,158 @@
+{
+  "brentwood2": {
+    "city": "Davenport",
+    "community": "Brentwood",
+    "id": "brentwood2",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/davenport/brentwood2"
+  },
+  "bridgewalk": {
+    "city": "Saint Cloud",
+    "community": "Bridgewalk",
+    "id": "bridgewalk",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/saint-cloud/bridgewalk"
+  },
+  "crosswinds": {
+    "city": "Haines City",
+    "community": "Crosswinds",
+    "id": "crosswinds",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/haines-city/crosswinds"
+  },
+  "grandview-townhomes": {
+    "city": "Davenport",
+    "community": "Grandview Townhomes",
+    "id": "grandview-townhomes",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/davenport/grandview-townhomes"
+  },
+  "groves-at-grenelefe": {
+    "city": "Haines City",
+    "community": "Groves at Grenelefe",
+    "id": "groves-at-grenelefe",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/haines-city/groves-at-grenelefe"
+  },
+  "hidden-ridge": {
+    "city": "Groveland",
+    "community": "Hidden Ridge",
+    "id": "hidden-ridge",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/groveland/hidden-ridge"
+  },
+  "hunt-club-groves": {
+    "city": "Lake Wales",
+    "community": "Hunt Club Groves",
+    "id": "hunt-club-groves",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/lake-wales/hunt-club-groves"
+  },
+  "knightsbridge": {
+    "city": "Kissimmee",
+    "community": "Knightsbridge",
+    "id": "knightsbridge",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/kissimmee/knightsbridge"
+  },
+  "lennar-at-esplanade": {
+    "city": "Kissimmee",
+    "community": "Lennar at Esplanade",
+    "id": "lennar-at-esplanade",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/kissimmee/lennar-at-esplanade"
+  },
+  "meadow-pointe": {
+    "city": "Groveland",
+    "community": "Meadow Pointe",
+    "id": "meadow-pointe",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe"
+  },
+  "pine-meadows": {
+    "city": "Eustis",
+    "community": "Pine Meadows",
+    "id": "pine-meadows",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/eustis/pine-meadows"
+  },
+  "providence": {
+    "city": "Davenport",
+    "community": "Providence",
+    "id": "providence",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/davenport/providence"
+  },
+  "ranches-at-lake-mcleod": {
+    "city": "Eagle Lake",
+    "community": "Ranches at Lake McLeod",
+    "id": "ranches-at-lake-mcleod",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/eagle-lake/ranches-at-lake-mcleod"
+  },
+  "reedy-isle": {
+    "city": "Davenport",
+    "community": "Reedy Isle",
+    "id": "reedy-isle",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/davenport/reedy-isle"
+  },
+  "sanctuary-at-wellness-ridge2": {
+    "city": "Clermont",
+    "community": "Sanctuary at Wellness Ridge",
+    "id": "sanctuary-at-wellness-ridge2",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/clermont/sanctuary-at-wellness-ridge2"
+  },
+  "scenic-terrace": {
+    "city": "Haines City",
+    "community": "Scenic Terrace",
+    "id": "scenic-terrace",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/haines-city/scenic-terrace"
+  },
+  "serenity-at-peace-creek-reserve": {
+    "city": "Winter Haven",
+    "community": "Serenity at Peace Creek Reserve",
+    "id": "serenity-at-peace-creek-reserve",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/winter-haven/serenity-at-peace-creek-reserve"
+  },
+  "sugarloaf-ridge": {
+    "city": "Minneola",
+    "community": "Sugarloaf Ridge",
+    "id": "sugarloaf-ridge",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/minneola/sugarloaf-ridge"
+  },
+  "the-glades-at-crossprairie": {
+    "city": "Saint Cloud",
+    "community": "The Glades at Crossprairie",
+    "id": "the-glades-at-crossprairie",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/saint-cloud/the-glades-at-crossprairie"
+  },
+  "the-parks-at-edgewater": {
+    "city": "Edgewater",
+    "community": "The Parks at Edgewater",
+    "id": "the-parks-at-edgewater",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/edgewater/the-parks-at-edgewater"
+  },
+  "villa-mar": {
+    "city": "Winter Haven",
+    "community": "Villa Mar",
+    "id": "villa-mar",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/winter-haven/villa-mar"
+  },
+  "waterlin": {
+    "city": "Saint Cloud",
+    "community": "Waterlin",
+    "id": "waterlin",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/saint-cloud/waterlin"
+  },
+  "waterstone": {
+    "city": "Groveland",
+    "community": "Waterstone",
+    "id": "waterstone",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/groveland/waterstone"
+  },
+  "wellness-ridge": {
+    "city": "Clermont",
+    "community": "Wellness Ridge",
+    "id": "wellness-ridge",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/clermont/wellness-ridge"
+  },
+  "westview": {
+    "city": "Kissimmee",
+    "community": "Westview",
+    "id": "westview",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/kissimmee/westview"
+  },
+  "woodland-ranch-estates": {
+    "city": "Dundee",
+    "community": "Woodland Ranch Estates",
+    "id": "woodland-ranch-estates",
+    "url": "https://www.lennar.com/new-homes/florida/orlando/dundee/woodland-ranch-estates"
+  }
+}
