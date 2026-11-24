@@ -155,6 +155,7 @@ try:
     if len({lot(h) for h in available})!=len(available):fail("Duplicate source lots")
     page_states={}
     fees={}
+    report["ownership_field_audit"]={}
     soon={}
     report["monument_updates"]=[]
     report["monument_retained"]=[]
@@ -187,6 +188,7 @@ try:
         for obj in objects(state,"CommunityType"):
             url=canon(obj.get("url"))
             if url and cmid(url)==c["id"]:
+                report["ownership_field_audit"][url]={k:v for k,v in obj.items() if re.search(r"hoa|assessment|cdd|tax|fee|frequency",k,re.I) and isinstance(v,(str,int,float,bool,type(None)))}
                 fees[url]={"hoa":obj.get("hoaFee"),"tax":obj.get("taxRate"),"community":c["id"],"collection_name":obj.get("name"),"assessment":obj.get("specialAssessment"),"assessment_frequency":obj.get("specialAssessmentFrequency")}
         for h in ch:
             if h.get("status")=="COMING_SOON":
@@ -235,6 +237,7 @@ try:
         home.update(changes)
         if not is_soon:home.pop("np",None)
         fee=fees.get(col)
+        report.setdefault("ownership_lot_audit",{})[k]={"collection":col,"fields":{key:value for key,value in src.items() if re.search(r"hoa|assessment|cdd|tax|fee|frequency",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))}}
         home["collection_url"]=col
         home.pop("ownership",None)
         if fee and fee["community"]==cid:
