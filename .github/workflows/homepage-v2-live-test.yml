@@ -34,6 +34,16 @@ jobs:
             const links=await page.locator('#community-results a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
             if(links.length<20||links.length!==parseInt(counts)||links.some(x=>!x.startsWith('/communities/')))throw Error('Community directory mismatch: '+counts);
             for(const link of links){if(!(await page.request.get('https://jus3d.com'+link)).ok())throw Error('Broken community link '+link);}
+            const community=await browser.newPage({viewport});
+            for(const link of links){
+              await community.goto('https://jus3d.com'+link+'?verify='+Date.now());
+              const cards=community.locator('.home-card');
+              if(await cards.count()!==await community.locator('.home-card .listing-photo img').count())throw Error('Missing listing image '+link);
+              const images=community.locator('.advisor-photo, .listing-photo img');
+              await images.evaluateAll(imgs=>imgs.forEach(i=>i.loading='eager'));
+              await community.waitForFunction(()=>Array.from(document.querySelectorAll('.advisor-photo, .listing-photo img')).every(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
+            }
+            await community.close();
             if(await page.locator('iframe').count())throw Error('Unexpected iframe');
             if(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Horizontal overflow');
             await page.locator('#results button[data-id]').first().click();
