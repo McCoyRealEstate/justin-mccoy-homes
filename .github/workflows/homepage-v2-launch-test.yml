@@ -1,0 +1,53 @@
+name: Homepage V2 launch rehearsal
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/homepage-v2-launch-test.yml'
+permissions:
+  contents: read
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Assemble separate presentation and inventory source
+        run: |
+          mkdir -p /tmp/site-test
+          cp -r areas communities data /tmp/site-test/
+          cp index.html /tmp/site-test/inventory-source.html
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('homepage-v2-preview.html').read_text()
+          s=s.replace('/index.html?phase8=', '/inventory-source.html?phase8=')
+          s=s.replace('<meta name="robots" content="noindex">','<link rel="canonical" href="https://jus3d.com/">')
+          s=s.replace('Homepage V2 Preview','Central Florida New Homes')
+          Path('/tmp/site-test/index.html').write_text(s)
+          PY
+          cmp index.html /tmp/site-test/inventory-source.html
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          python -m http.server 8765 --directory /tmp/site-test >/tmp/server.log 2>&1 &
+          node --input-type=module <<'JS'
+          import {chromium} from 'playwright';
+          const browser=await chromium.launch();
+          for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+            const page=await browser.newPage({viewport});
+            const errors=[];page.on('pageerror',e=>errors.push(e.message));
+            await page.goto('http://localhost:8765/');
+            await page.waitForFunction(()=>document.querySelector('#count')?.textContent.includes('Inventory updated every 2 hours'));
+            const counts=await page.locator('#community-count').innerText();
+            const links=await page.locator('#community-results a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
+            if(links.length<20||links.length!==parseInt(counts)||links.some(x=>!x.startsWith('/communities/')))throw Error('Community directory mismatch: '+counts);
+            for(const link of links){if(!(await page.request.get('http://localhost:8765'+link)).ok())throw Error('Broken community link '+link);}
+            if(await page.locator('iframe').count())throw Error('Unexpected iframe');
+            if(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Horizontal overflow');
+            await page.locator('#results button[data-id]').first().click();
+            if(!await page.locator('#detail').isVisible())throw Error('Listing dialog failed');
+            await page.locator('#close').click();
+            if(errors.length)throw Error(errors.join('; '));
+            console.log(viewport.width+'px: '+counts+'; '+await page.locator('#count').innerText());
+            await page.close();
+          }
+          await browser.close();
+          JS
