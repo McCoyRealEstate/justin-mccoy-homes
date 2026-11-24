@@ -168,6 +168,7 @@ try:
         exact.sort(key=lambda o: (canon(o.get("url"))!=canon(c["url"]),len(canon(o.get("url"))),canon(o.get("url"))))
         monument=None
         for obj in exact:
+            report.setdefault("community_feature_audit",{})[canon(obj.get("url"))]={key:{"type":type(value).__name__,"sample":str(value)[:500]} for key,value in obj.items() if re.search(r"amenit|feature|gallery|tour",key,re.I)}
             gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
             for im in gallery:
                 if isinstance(im,dict) and safephoto(im.get("url")) and "monument" in (str(im.get("url"))+" "+str(im.get("alt"))).lower():
@@ -225,6 +226,7 @@ try:
         old=copy.deepcopy(home)
         # Keep existing garage and any other non-source fields unchanged.
         plan=resolve(state,src.get("plan"))
+        report.setdefault("property_feature_audit",{})[k]={"collection":col,"homesite":{key:value for key,value in src.items() if re.search(r"garage|story|stories|feature|nextgen|tour|floorplan|amenit",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))},"plan":{key:value for key,value in plan.items() if re.search(r"garage|story|stories|feature|nextgen|tour|floorplan|amenit",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))}}
         changes={"a":src.get("address") or home.get("a"),"s":status,"bd":safe_num(src.get("beds"),home.get("bd")),"ba":safe_num(src.get("baths"),0)+.5*safe_num(src.get("halfBaths"),0),"sq":safe_num(src.get("sqft"),home.get("sq")),"pl":src.get("planName") or plan.get("name") or home.get("pl"),"miss":0}
         if not is_soon:
             price=safe_num(src.get("price"))
