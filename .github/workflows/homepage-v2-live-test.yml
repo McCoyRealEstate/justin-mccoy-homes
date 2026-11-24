@@ -27,6 +27,13 @@ jobs:
             const page=await browser.newPage({viewport});
             const errors=[];page.on('pageerror',e=>errors.push(e.message));
             await page.goto('https://jus3d.com/?verify='+Date.now());
+            const feed=await page.request.get('https://jus3d.com/data/verified-homepage.json');
+            if(!feed.ok())throw Error('Verified feed unavailable');
+            const inventory=await feed.json();
+            if(inventory.D.h.length<100||inventory.D.c.length<20)throw Error('Invalid inventory feed');
+            if(await page.locator('link[rel=canonical]').getAttribute('href')!=='https://jus3d.com/')throw Error('Homepage canonical incorrect');
+            if(!await page.locator('meta[name=description]').count())throw Error('Missing homepage description');
+            if((await page.locator('meta[name=robots]').count())&&(await page.locator('meta[name=robots]').first().getAttribute('content')).includes('noindex'))throw Error('Homepage blocked from indexing');
             const source=await page.request.get('https://jus3d.com/inventory-source.html?verify='+Date.now());
             if(!source.ok()||!(await source.text()).includes('const D'))throw Error('Inventory source unavailable');
             await page.waitForFunction(()=>document.querySelector('#count')?.textContent.includes('Inventory updated every 2 hours'));
@@ -37,11 +44,13 @@ jobs:
             const community=await browser.newPage({viewport});
             for(const link of links){
               await community.goto('https://jus3d.com'+link+'?verify='+Date.now());
+              if(await community.locator('link[rel=canonical]').getAttribute('href')!=='https://jus3d.com'+link)throw Error('Community canonical mismatch '+link);
+              if(await community.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Community horizontal overflow '+link);
               const cards=community.locator('.home-card');
               if(await cards.count()!==await community.locator('.home-card .listing-photo img').count())throw Error('Missing listing image '+link);
-              const images=community.locator('.advisor-photo, .listing-photo img');
+              const images=community.locator('.advisor-photo, .listing-photo img, .community-monument img');
               await images.evaluateAll(imgs=>imgs.forEach(i=>i.loading='eager'));
-              await community.waitForFunction(()=>Array.from(document.querySelectorAll('.advisor-photo, .listing-photo img')).every(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
+              await community.waitForFunction(()=>Array.from(document.querySelectorAll('.advisor-photo, .listing-photo img, .community-monument img')).every(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
             }
             await community.close();
             if(await page.locator('iframe').count())throw Error('Unexpected iframe');
