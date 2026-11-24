@@ -58,7 +58,7 @@ function render(){
  const q=$('q').value.toLowerCase().trim(),city=$('city').value,max=+$('price').value,beds=+$('beds').value;
  let a=homes.filter(h=>(!q||[h.address,h.community,h.plan,h.city].some(v=>String(v||'').toLowerCase().includes(q)))&&(!city||h.city===city)&&(!max||(Number(h.price)>0&&h.price<=max))&&(!beds||h.beds>=beds));
  a.sort((x,y)=>$('sort').value==='high'?(y.price||0)-(x.price||0):$('sort').value==='size'?(y.sqft||0)-(x.sqft||0):(x.price||Infinity)-(y.price||Infinity));
- $('count').textContent=a.length+' homes matching your search · '+(verified?'Inventory updated every 2 hours':'Last available inventory · Confirm availability')+(lastUpdated?' · '+lastUpdated:'');
+ $('count').textContent=a.length+' homes matching your search · '+(verified?'Inventory updated hourly':'Last available inventory · Confirm availability')+(lastUpdated?' · '+lastUpdated:'');
  $('results').innerHTML=a.slice(0,visibleLimit).map(h=>'<article class="home"><div class="visual">'+(h.photo?'<img loading="lazy" alt="'+esc(h.plan||'Home')+' exterior" src="'+esc(h.photo)+'" >':'<small>Central Florida · New Construction</small><strong>'+esc(h.plan||'New Home')+'</strong>')+'</div><div class="home-body"><div class="home-meta"><span class="status">'+esc(h.availability||'Check availability')+'</span><span class="price">'+money(h.price)+'</span></div><h3>'+esc(h.address)+'</h3><p class="loc">'+esc(h.community)+' · '+esc(h.city)+', FL</p><div class="specs"><span>'+esc(h.beds)+' Beds</span><span>'+esc(h.baths)+' Baths</span><span>'+Number(h.sqft||0).toLocaleString()+' Sq Ft</span></div><button type="button" data-id="'+homes.indexOf(h)+'">View Home Details</button></div></article>').join('')||'<p>No homes match those filters. Try broadening your search.</p>';
  $('more-homes').style.display=a.length>visibleLimit?'inline-block':'none';
  $('more-homes').textContent='Show More Homes ('+Math.min(15,a.length-visibleLimit)+' more)';
@@ -66,7 +66,7 @@ function render(){
 function draw(){
  const q=$('community-query').value.toLowerCase().trim(),city=$('community-city').value;
  const matching=groups.filter(g=>(!q||(g.name+' '+g.city).toLowerCase().includes(q))&&(!city||g.city===city));
- $('community-count').textContent=matching.length+' communities · '+(verified?'Inventory updated every 2 hours':'Last available inventory');
+ $('community-count').textContent=matching.length+' communities · '+(verified?'Inventory updated hourly':'Last available inventory');
  $('community-results').innerHTML=matching.map(g=>{const path=g.id||slug(g.name),hasPage=!!g.id||known.has(path),url=hasPage?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(g.photo?'photo':'')+'">'+(g.photo?'<img loading="lazy" src="'+esc(g.photo)+'" alt="'+esc(g.name)+' community">':esc(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc(g.name)+'</h3><p>'+(g.count?g.count+(g.count===1?' home in inventory':' homes in inventory')+(g.min?' · From '+money(g.min):''):'No homes currently listed · Explore nearby options')+'</p><a href="'+url+'" data-community="'+esc(g.name)+'" data-city="'+esc(g.city)+'">'+(hasPage?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No communities match. Try another city or name.</p>';
 }
 async function load(){
