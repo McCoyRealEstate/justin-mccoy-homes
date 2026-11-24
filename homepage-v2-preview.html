@@ -36,7 +36,7 @@ function parseConst(html,name){
  return null;
 }
 function imageFrom(index,PH){
- if(Number.isInteger(index))return imageFrom(PH[index],PH);
+ if(Number.isInteger(index))index=PH[index];
  if(typeof index==='string'&&/^(data:image\/|https?:\/\/|\/)/i.test(index))return index;
  return null;
 }
@@ -44,10 +44,10 @@ function normalizeCity(c){return String(c||'').replace(/^Saint Cloud$/i,'St. Clo
 const cityLookup=new Map();
 function populate(data,meta){
  homes=data;verified=meta.verified;lastUpdated=meta.updated||'';
- const cities=[...new Set(homes.map(h=>h.city).filter(Boolean))].sort();
+ const cities=[...new Set([...homes,...(meta.directory||[])].map(h=>h.city).filter(Boolean))].sort();
  for(const id of ['city','community-city']){const sel=$(id),selected=sel.value;sel.querySelectorAll('option:not([value=""])').forEach(x=>x.remove());cities.forEach(c=>sel.add(new Option(c,c)));sel.value=selected;}
- const map=new Map();
- for(const h of homes){const key=h.community+'|'+h.city;if(!map.has(key))map.set(key,{name:h.community,city:h.city,count:0,min:null,photo:h.communityPhoto||null});const g=map.get(key);g.count++;if(!g.photo&&h.communityPhoto)g.photo=h.communityPhoto;if(Number(h.price)>0)g.min=g.min===null?Number(h.price):Math.min(g.min,Number(h.price));}
+ const map=new Map((meta.directory||[]).map(c=>[c.id,{...c,count:0,min:null}]));
+ for(const h of homes){const key=h.communityId||h.community+'|'+h.city;if(!map.has(key))map.set(key,{name:h.community,city:h.city,count:0,min:null,photo:h.communityPhoto||null});const g=map.get(key);g.count++;if(!g.photo&&h.communityPhoto)g.photo=h.communityPhoto;if(Number(h.price)>0)g.min=g.min===null?Number(h.price):Math.min(g.min,Number(h.price));}
  groups=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name));
  render();draw();
 }
@@ -64,7 +64,7 @@ function draw(){
  const q=$('community-query').value.toLowerCase().trim(),city=$('community-city').value;
  const matching=groups.filter(g=>(!q||(g.name+' '+g.city).toLowerCase().includes(q))&&(!city||g.city===city));
  $('community-count').textContent=matching.length+' communities · '+(verified?'Inventory updated every 2 hours':'Last available inventory');
- $('community-results').innerHTML=matching.map(g=>{const path=slug(g.name),url=known.has(path)?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(g.photo?'photo':'')+'">'+(g.photo?'<img loading="lazy" src="'+esc(g.photo)+'" alt="'+esc(g.name)+' community">':esc(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc(g.name)+'</h3><p>'+g.count+' homes in inventory · From '+money(g.min)+'</p><a href="'+url+'" data-community="'+esc(g.name)+'" data-city="'+esc(g.city)+'">'+(known.has(path)?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No communities match. Try another city or name.</p>';
+ $('community-results').innerHTML=matching.map(g=>{const path=g.id||slug(g.name),hasPage=!!g.id||known.has(path),url=hasPage?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(g.photo?'photo':'')+'">'+(g.photo?'<img loading="lazy" src="'+esc(g.photo)+'" alt="'+esc(g.name)+' community">':esc(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc(g.name)+'</h3><p>'+(g.count?g.count+' homes in inventory'+(g.min?' · From '+money(g.min):''):'No homes currently listed · Explore nearby options')+'</p><a href="'+url+'" data-community="'+esc(g.name)+'" data-city="'+esc(g.city)+'">'+(hasPage?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No communities match. Try another city or name.</p>';
 }
 async function load(){
  try{
@@ -73,10 +73,12 @@ async function load(){
   if(!D||!Array.isArray(D.c)||!Array.isArray(D.h)||!IMG||!PH||!HIMG||D.h.length<100)throw Error('Phase 8 data failed structural validation');
   const cm=new Map(D.c.map(c=>[c.id,c]));
   try{const ref=await fetch('/data/inventory.json?citymap='+Date.now(),{cache:'no-store'});if(ref.ok){const snapshot=await ref.json();for(const h of snapshot.listings||[]){const name=String(h.community||'').trim().toLowerCase(),city=normalizeCity(h.city);if(name&&city){cityLookup.set(name,city);cityLookup.set(name.split(' - ')[0],city);}}}}catch(e){console.warn('City lookup backup unavailable');}
-  const data=D.h.map(h=>{const c=cm.get(h.cm)||{},plan=String(h.pl||'').trim(),lot=String(h.lot||'');const idx=HIMG[lot]??HIMG[lot.toLowerCase()]??HIMG[lot.toUpperCase()]??(PLANPH||{})[h.cm+'|'+plan.toLowerCase()]??IMG[h.cm];
-   return {lot,address:h.a||'',community:c.n||c.name||c.community||h.cm,city:normalizeCity(c.city||c.ct||c.locationCity||cityLookup.get(String(c.n||c.name||c.community||'').toLowerCase())||cityLookup.get(String(c.n||c.name||c.community||'').toLowerCase().split(' - ')[0])||''),plan,price:(h.s==='S'||h.s==='C'||h.np===1)?null:(h.p||null),beds:h.bd||0,baths:h.ba||0,sqft:h.sq||0,availability:h.s==='M'?'Move-in ready':h.s==='U'?'Under construction':'Coming soon',photo:imageFrom(idx,PH),communityPhoto:imageFrom(IMG[h.cm],PH),officialUrl:LU?.[lot]||c.url||null};
+  const cityOf=c=>normalizeCity(c.city||c.ct||c.locationCity||cityLookup.get(String(c.n||c.name||'').toLowerCase())||String(c.url||'').split('/')[5]?.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')||'');
+  const directory=D.c.map(c=>({id:c.id,name:c.n||c.name||c.id,city:cityOf(c),photo:imageFrom(IMG[c.id],PH)}));
+  const data=D.h.map(h=>{const c=cm.get(h.cm)||{},plan=String(h.pl||'').trim(),lot=String(h.lot||'');const photo=[HIMG[lot],HIMG[lot.toLowerCase()],HIMG[lot.toUpperCase()],(PLANPH||{})[h.cm+'|'+plan.toLowerCase()],IMG[h.cm]].map(i=>imageFrom(i,PH)).find(Boolean)||null;
+   return {lot,communityId:h.cm,address:h.a||'',community:c.n||c.name||c.community||h.cm,city:cityOf(c),plan,price:(h.s==='S'||h.s==='C'||h.np===1)?null:(h.p||null),beds:h.bd||0,baths:h.ba||0,sqft:h.sq||0,availability:h.s==='M'?'Move-in ready':h.s==='U'?'Under construction':'Coming soon',photo,communityPhoto:imageFrom(IMG[h.cm],PH),officialUrl:LU?.[lot]||c.url||null};
   });
-  populate(data,{verified:true,updated:''});
+  populate(data,{verified:true,updated:'',directory});
  }catch(err){
   console.warn('Verified Phase 8 data unavailable',err);
   try{const r=await fetch('/data/inventory.json?backup='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Backup unavailable');const d=await r.json();populate((d.listings||[]).map(h=>({...h,communityPhoto:null,photo:null})),{verified:false,updated:d.checked_at_utc||''});}catch(e){$('count').textContent='Inventory temporarily unavailable';$('community-count').textContent='Community inventory temporarily unavailable';}
