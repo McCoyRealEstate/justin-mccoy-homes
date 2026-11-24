@@ -1,4 +1,5 @@
 name: Lennar Phase 8 - Automatic Refresh (Every 2 Hours)
+# Post-cutover verification: successful refresh triggers standalone Pages publishing.
 
 on:
   workflow_dispatch:
