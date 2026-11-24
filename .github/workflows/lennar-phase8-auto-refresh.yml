@@ -99,6 +99,8 @@ jobs:
           for c in data['communities']:
               page=BeautifulSoup((Path('communities')/(c['id']+'.html')).read_text(),'html.parser')
               assert all(card.select_one('.listing-photo img[src]') for card in page.select('.home-card')), c['id']
+              if c.get('monument_photo'):
+                  assert page.select_one('.community-monument img')['src']==c['monument_photo'], c['id']
           PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6
