@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "community": "Meadow Pointe",
+  "status": "awaiting_verified_geometry",
+  "sources": [
+    {
+      "type": "official_site_plan",
+      "url": "https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe/classic-collection"
+    },
+    {
+      "type": "inventory",
+      "url": "https://www.lennar.com/new-homes/florida/orlando/promo/olhlen_nhc_inventory"
+    },
+    {
+      "type": "plat_approval_reference",
+      "url": "https://www.groveland-fl.gov/AgendaCenter/ViewFile/Minutes/_09052024-1264",
+      "resolution": "2024-89"
+    }
+  ],
+  "rules": {
+    "join": "community_id + verified public homesite identifier or exact confirmed address",
+    "publish_geometry_only_when_verified": true,
+    "unknown_attributes": null,
+    "inventory_source": "existing hourly verified inventory"
+  },
+  "homesites": []
+}
