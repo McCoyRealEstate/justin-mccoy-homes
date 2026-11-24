@@ -68,8 +68,10 @@ function draw(){
 }
 async function load(){
  try{
-  const response=await fetch('/index.html?phase8='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Phase 8 homepage unavailable');
-  const html=await response.text(),D=parseConst(html,'D'),IMG=parseConst(html,'IMG'),PH=parseConst(html,'PH'),PLANPH=parseConst(html,'PLANPH'),HIMG=parseConst(html,'HIMG'),LU=parseConst(html,'LU');
+  let payload;
+  try {const feed=await fetch('/data/verified-homepage.json',{cache:'no-cache'});if(!feed.ok)throw Error('Feed unavailable');payload=await feed.json();if(!payload.D?.h?.length||!payload.D?.c?.length)throw Error('Invalid feed');}
+  catch(e){const response=await fetch('/index.html?phase8='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Phase 8 homepage unavailable');const html=await response.text();payload=Object.fromEntries(['D','IMG','PH','PLANPH','HIMG','LU'].map(k=>[k,parseConst(html,k)]));}
+  const {D,IMG,PH,PLANPH,HIMG,LU}=payload;
   if(!D||!Array.isArray(D.c)||!Array.isArray(D.h)||!IMG||!PH||!HIMG||D.h.length<100)throw Error('Phase 8 data failed structural validation');
   const cm=new Map(D.c.map(c=>[c.id,c]));
   try{const ref=await fetch('/data/inventory.json?citymap='+Date.now(),{cache:'no-store'});if(ref.ok){const snapshot=await ref.json();for(const h of snapshot.listings||[]){const name=String(h.community||'').trim().toLowerCase(),city=normalizeCity(h.city);if(name&&city){cityLookup.set(name,city);cityLookup.set(name.split(' - ')[0],city);}}}}catch(e){console.warn('City lookup backup unavailable');}
