@@ -8,7 +8,7 @@ on:
       - .github/workflows/local-seo-pages.yml
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: lennar-controlled-publish
   cancel-in-progress: false
@@ -18,14 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          persist-credentials: true
+          ref: main
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Generate and validate location pages
         run: |
-          python generate_local_pages.py
-          python generate_community_pages.py
+          python prepare_city_inventory.py index.html lennar_preview/city-inventory.json
+          python generate_local_pages.py lennar_preview/city-inventory.json
+          python generate_community_pages.py lennar_preview/city-inventory.json
           python - <<'PY'
           from pathlib import Path
           from xml.etree import ElementTree as ET
@@ -37,14 +39,5 @@ jobs:
             assert '<h1>' in s
             assert 'https://jus3d.com/' in s
           PY
-      - name: Publish generated pages
-        run: |
-          git config user.name "McCoy SEO Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add areas communities sitemap.xml
-          if git diff --cached --quiet; then
-            echo "Local SEO pages already up to date"
-          else
-            git commit -m "Publish Central Florida local SEO pages"
-            git push origin HEAD:main
-          fi
+      - name: Confirm validation-only operation
+        run: echo 'Production SEO pages are published by the verified Phase 8 refresh pipeline.'
