@@ -74,6 +74,7 @@ jobs:
             'candidate_sha256':hashlib.sha256(candidate).hexdigest(),
             'baseline_homes':diff['baseline_homes'],'candidate_homes':diff['candidate_homes'],
             'added':diff['added'],'removed':diff['removed'],'updated_count':diff['updated_count'],
+            'held_removals':diff.get('held_removals',[]),
             'coming_soon_count':diff['coming_soon_count'],'communities':diff['communities'],
             'identical_to_baseline':src==candidate},indent=2))
           PY
