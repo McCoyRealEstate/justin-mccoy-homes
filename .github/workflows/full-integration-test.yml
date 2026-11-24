@@ -119,6 +119,49 @@ jobs:
           registry.write_text(json.dumps(d,indent=2))
           print('Archived community simulation passed')
           PY
+      - name: Browser smoke tests on desktop and mobile
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/site-test
+          cp -r areas communities data /tmp/site-test/
+          cp homepage-v2-preview.html /tmp/site-test/
+          cp lennar_publish/index-proposed-phase8.html /tmp/site-test/index.html
+          python -m http.server 8765 --directory /tmp/site-test >/tmp/site-test-server.log 2>&1 &
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const expected=JSON.parse(fs.readFileSync('lennar_preview/city-inventory.json'));
+          for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+            const page=await browser.newPage({viewport});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(e.message));
+            await page.goto('http://localhost:8765/homepage-v2-preview.html');
+            await page.waitForFunction(()=>document.querySelector('#count')?.textContent.includes('Inventory updated every 2 hours'));
+            const count=await page.locator('#count').innerText();
+            if(!count.startsWith(expected.verified_count+' homes'))throw Error('Inventory count mismatch: '+count);
+            await page.locator('#q').fill('zzzz-no-matching-home');
+            await page.locator('#filters button[type=submit]').click();
+            await page.waitForFunction(()=>document.querySelector('#count').textContent.startsWith('0 homes'));
+            await page.locator('#q').fill('');
+            await page.locator('#filters button[type=submit]').click();
+            await page.locator('#results button[data-id]').first().click();
+            if(!await page.locator('#detail').isVisible())throw Error('Listing dialog failed');
+            await page.locator('#close').click();
+            if(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Horizontal overflow');
+            await page.screenshot({path:'lennar_preview/browser-'+viewport.width+'.png',fullPage:true});
+            for(const c of expected.communities){
+              const response=await page.goto('http://localhost:8765/communities/'+c.id+'.html');
+              if(!response.ok())throw Error('Community page failed: '+c.id);
+              if(!await page.locator('h1').count())throw Error('Missing heading: '+c.id);
+            }
+            if(errors.length)throw Error(errors.join('; '));
+            console.log('Browser smoke test passed: '+viewport.width+'px');
+            await page.close();
+          }
+          await browser.close();
+          JS
       - name: Upload backup and audit report
         if: always()
         uses: actions/upload-artifact@v6
@@ -135,5 +178,6 @@ jobs:
             communities/
             sitemap.xml
             data/community-seo-registry.json
+            lennar_preview/browser-*.png
           if-no-files-found: error
           retention-days: 90
