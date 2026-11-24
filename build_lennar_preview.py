@@ -187,7 +187,7 @@ try:
         for obj in objects(state,"CommunityType"):
             url=canon(obj.get("url"))
             if url and cmid(url)==c["id"]:
-                fees[url]={"hoa":obj.get("hoaFee"),"tax":obj.get("taxRate"),"community":c["id"]}
+                fees[url]={"hoa":obj.get("hoaFee"),"tax":obj.get("taxRate"),"community":c["id"],"collection_name":obj.get("name"),"assessment":obj.get("specialAssessment"),"assessment_frequency":obj.get("specialAssessmentFrequency")}
         for h in ch:
             if h.get("status")=="COMING_SOON":
                 k=lot(h)
@@ -235,7 +235,10 @@ try:
         home.update(changes)
         if not is_soon:home.pop("np",None)
         fee=fees.get(col)
+        home["collection_url"]=col
+        home.pop("ownership",None)
         if fee and fee["community"]==cid:
+            home["ownership"]={"source":col,"collection":fee["collection_name"],"hoa":fee["hoa"],"tax":fee["tax"],"assessment":fee["assessment"],"assessment_frequency":fee["assessment_frequency"]}
             if fee["hoa"] is not None:home["hoa"]=fee["hoa"]
             else:home["hoa"]=None
             if fee["tax"] is not None:home["tax"]=fee["tax"]
