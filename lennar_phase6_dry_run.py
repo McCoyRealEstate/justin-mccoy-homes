@@ -55,7 +55,11 @@ try:
         else:ok=False
         if ok and lot in newhomes:confirmed.append(lot)
         else:hold.append({'lot':lot,'classification':classification})
-    if hold:raise ValueError('Removal verification incomplete; fail closed: '+json.dumps(hold))
+    # Keep unresolved listings exactly as previously verified; never delete on fetch failure.
+    for item in hold:
+        lot=item['lot']
+        if lot not in oldhomes or newhomes.get(lot)!=oldhomes[lot]:raise ValueError('Unresolved listing changed: '+lot)
+    report['held_removals']=hold
     # Remove ONLY the independently verified missing homes.
     new['h']=[h for h in new['h'] if str(h['lot']).lower() not in confirmed]
     for h in new['h']:
