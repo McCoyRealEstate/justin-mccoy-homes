@@ -71,6 +71,21 @@ for name,city,slug in targets:
         body=body.replace('<div class="cards">', '<div class="location-card"><div><div class="location-label">📍 Visit Our Welcome Home Center</div><div class="location-address">929 Tundra Loop<br>Groveland, FL 34736</div></div><a class="location-link" href="https://www.google.com/maps/search/?api=1&amp;query=929%20Tundra%20Loop%2C%20Groveland%2C%20FL%2034736" target="_blank" rel="noopener noreferrer">Get Directions →</a></div><div class="cards">',1)
     (out/(slug+'.html')).write_text(render(title,desc,url,body),encoding='utf-8')
     links.append((name,city,slug,url))
+# Persist the last verified directory so removed communities retain useful landing pages.
+registry_path=ROOT/'data/community-seo-registry.json'
+if directory:
+    registry=json.loads(registry_path.read_text()) if registry_path.exists() else {}
+    active={c['id']:c for c in directory}
+    registry.update(active)
+    for slug,c in registry.items():
+        if slug in active:continue
+        name,city=c['community'],c['city']
+        counts={a['id']:sum(h.get('community_id')==a['id'] and h.get('availability') in ('Move-in ready','Under construction') for h in data.get('homes',[])) for a in directory}
+        alternatives=sorted((a for a in directory if counts[a['id']]>0),key=lambda a:(proximity(city,a['city']),-counts[a['id']],a['community']))[:3]
+        body='<section class="hero"><h1>'+esc(name)+'</h1><p>This community is no longer in our active inventory directory. Contact Justin for confirmation and explore nearby communities with available homes.</p><h2>Explore other available communities</h2><div class="cards">'+''.join('<article><h3><a href="/communities/'+esc(a['id'])+'.html">'+esc(a['community'])+'</a></h3><p>'+esc(a['city'])+' · '+str(counts[a['id']])+' available homes</p></article>' for a in alternatives)+'</div><p><a href="/">Browse current inventory</a></p></section>'
+        url='https://jus3d.com/communities/'+slug+'.html'
+        (out/(slug+'.html')).write_text(render(name+' | Community Availability Update',name+' availability update and nearby new construction alternatives.',url,body),encoding='utf-8')
+    registry_path.write_text(json.dumps(registry,indent=2,sort_keys=True))
 hub='https://jus3d.com/communities/'
 body='<h1>Featured Lennar New Construction Communities</h1><p>Explore community-specific information with Justin McCoy, then browse current Central Florida inventory.</p>'+''.join('<article><h2><a href="/communities/'+slug+'.html">'+esc(name)+'</a></h2><p>'+esc(city)+', Florida</p></article>' for name,city,slug,_ in links)+'<p><a href="/areas/">Browse by city</a> · <a href="/">Search all homes</a></p>'
 (out/'index.html').write_text(render('Featured Lennar Communities in Central Florida | Justin McCoy | New Home Consultant - Lennar Homes - Orlando Division','Explore Lennar communities across Central Florida with Justin McCoy.',hub,body),encoding='utf-8')
