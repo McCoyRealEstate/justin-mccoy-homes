@@ -1,0 +1,45 @@
+name: Publish standalone Homepage V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages-v2-production
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Assemble tested standalone site
+        run: |
+          mkdir -p /tmp/site
+          git archive HEAD | tar -x -C /tmp/site
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/site')
+          source=(p/'index.html').read_bytes()
+          (p/'inventory-source.html').write_bytes(source)
+          s=(p/'homepage-v2-preview.html').read_text()
+          assert '/index.html?phase8=' in s
+          s=s.replace('/index.html?phase8=', '/inventory-source.html?phase8=')
+          s=s.replace('<meta name="robots" content="noindex">','<link rel="canonical" href="https://jus3d.com/">')
+          s=s.replace('Homepage V2 Preview','Central Florida New Homes')
+          (p/'index.html').write_text(s)
+          assert (p/'inventory-source.html').read_bytes()==source
+          assert '<iframe' not in s.lower()
+          PY
+          rm -rf /tmp/site/.github
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/site
+      - uses: actions/deploy-pages@v4
+        id: deployment
