@@ -155,6 +155,7 @@ try:
     if len({lot(h) for h in available})!=len(available):fail("Duplicate source lots")
     page_states={}
     fees={}
+    collection_amenities={}
     report["ownership_field_audit"]={}
     soon={}
     report["monument_updates"]=[]
@@ -168,6 +169,13 @@ try:
         exact.sort(key=lambda o: (canon(o.get("url"))!=canon(c["url"]),len(canon(o.get("url"))),canon(o.get("url"))))
         monument=None
         for obj in exact:
+            info=resolve(state,obj.get("amenityInfo"))
+            names=[]
+            for item in info.get("amenities") or []:
+                item=resolve(state,item)
+                name=item.get("name")
+                if isinstance(name,str) and name.strip() and name.strip() not in names:names.append(name.strip())
+            collection_amenities[canon(obj.get("url"))]=names
             report.setdefault("community_feature_audit",{})[canon(obj.get("url"))]={key:{"type":type(value).__name__,"sample":str(value)[:500]} for key,value in obj.items() if re.search(r"amenit|feature|gallery|tour",key,re.I)}
             gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
             for im in gallery:
@@ -241,6 +249,7 @@ try:
         fee=fees.get(col)
         report.setdefault("ownership_lot_audit",{})[k]={"collection":col,"fields":{key:value for key,value in src.items() if re.search(r"hoa|assessment|cdd|tax|fee|frequency",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))}}
         home["collection_url"]=col
+        home["features"]={"stories":src.get("stories") if type(src.get("stories")) is int and 1<=src["stories"]<=4 else None,"amenities":collection_amenities.get(col,[])}
         home.pop("ownership",None)
         if fee and fee["community"]==cid:
             home["ownership"]={"source":col,"collection":fee["collection_name"],"hoa":fee["hoa"],"tax":fee["tax"],"assessment":fee["assessment"],"hoa_monthly":fee["hoa_monthly"],"assessment_monthly":fee["assessment_monthly"]}
