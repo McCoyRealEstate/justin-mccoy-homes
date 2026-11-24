@@ -40,6 +40,30 @@ jobs:
           p=Path('/tmp/site')
           source=(p/'index.html').read_bytes()
           (p/'inventory-source.html').write_bytes(source)
+          import json,re,base64,hashlib
+          html=source.decode('utf-8')
+          def constant(k):
+              m=re.search(r'(?m)^const\s+'+k+r'\s*=\s*',html)
+              return json.JSONDecoder().raw_decode(html[m.end():])[0]
+          feed={k:constant(k) for k in ('D','IMG','PH','PLANPH','HIMG','LU')}
+          assert len(feed['D']['h'])>=100 and len(feed['D']['c'])>=20
+          photos=p/'assets'/'inventory'
+          photos.mkdir(parents=True,exist_ok=True)
+          def externalize(v):
+              if isinstance(v,str) and v.startswith('data:image/') and ';base64,' in v:
+                  header,encoded=v.split(',',1)
+                  raw=base64.b64decode(encoded,validate=True)
+                  ext={'data:image/jpeg;base64':'jpg','data:image/png;base64':'png','data:image/webp;base64':'webp'}.get(header)
+                  if not ext:return v
+                  name=hashlib.sha256(raw).hexdigest()+'.'+ext
+                  (photos/name).write_bytes(raw)
+                  return '/assets/inventory/'+name
+              return v
+          feed['PH']=[externalize(v) for v in feed['PH']]
+          for k in ('IMG','PLANPH','HIMG'):
+              feed[k]={a:externalize(v) for a,v in feed[k].items()}
+          (p/'data'/'verified-homepage.json').write_text(json.dumps(feed,separators=(',',':')))
+          print('Inventory feed bytes:',(p/'data'/'verified-homepage.json').stat().st_size,'Legacy source bytes:',len(source))
           s=(p/'homepage-v2-preview.html').read_text()
           assert '/index.html?phase8=' in s
           s=s.replace('/index.html?phase8=', '/inventory-source.html?phase8=')
