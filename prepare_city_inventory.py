@@ -54,6 +54,8 @@ PH,HIMG,PLANPH,IMG=[const(k) for k in ('PH','HIMG','PLANPH','IMG')]
 def image(v):
     if type(v) is int:v=PH[v] if 0<=v<len(PH) else None
     return v if isinstance(v,str) and v.startswith(('data:image/','https://cdn.lennar.com/','https://lennar.bynder.com/','https://www.lennar.com/')) else ''
+for c in out:
+    c['monument_photo']=image(IMG.get(c['id']))
 def photo(h):
     lot=str(h['lot'])
     for k in (lot,lot.lower(),lot.upper()):
