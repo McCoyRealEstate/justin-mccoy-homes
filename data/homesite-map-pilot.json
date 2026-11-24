@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "community": "Meadow Pointe",
-  "status": "awaiting_verified_geometry",
+  "status": "illustrative_site_plan_received",
   "sources": [
     {
       "type": "official_site_plan",
@@ -23,5 +23,32 @@
     "unknown_attributes": null,
     "inventory_source": "existing hourly verified inventory"
   },
-  "homesites": []
+  "homesites": [],
+  "reference": {
+    "type": "user_supplied_lennar_site_plan_screenshot",
+    "date_label": "11/26",
+    "not_to_scale": true,
+    "coordinate_space": "reference screenshot 707 x 1536",
+    "publication_status": "pending permission and verification"
+  },
+  "reference_markers": [
+    {
+      "homesite": "111",
+      "x": 377,
+      "y": 888,
+      "verification": "visual reference only; not a surveyed location"
+    },
+    {
+      "homesite": "136",
+      "x": 122,
+      "y": 791,
+      "verification": "visual reference only; not a surveyed location"
+    },
+    {
+      "homesite": "140",
+      "x": 138,
+      "y": 736,
+      "verification": "visual reference only; not a surveyed location"
+    }
+  ]
 }
