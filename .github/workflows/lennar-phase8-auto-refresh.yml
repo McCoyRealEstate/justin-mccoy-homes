@@ -143,3 +143,5 @@ jobs:
           else:
               raise SystemExit('Could not inspect staged changes')
           PY
+
+# Refresh premium property card presentation.
