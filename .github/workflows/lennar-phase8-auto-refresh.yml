@@ -173,3 +173,5 @@ jobs:
 # Regenerate community pages with responsive inventory pagination.
 
 # Run collection and homesite ownership field audit
+
+# Validate audited ownership fee mapping
