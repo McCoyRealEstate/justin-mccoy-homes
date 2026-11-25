@@ -118,7 +118,8 @@ jobs:
         if: ${{ github.ref == 'refs/heads/main' && vars.LENNAR_AUTO_ENABLED == 'true' }}
         run: |
           python - <<'PY'
-          import hashlib,json,subprocess
+          import hashlib,json,subprocess,os
+          from datetime import datetime,timezone
           from pathlib import Path
           report=json.loads(Path('lennar_publish/phase8-report.json').read_text())
           before=Path('index.html').read_bytes()
@@ -130,7 +131,8 @@ jobs:
               Path('index.html').write_bytes(after)
           subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
           subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-          subprocess.run(['git','add','index.html','areas','communities','sitemap.xml','data/community-seo-registry.json'],check=True)
+          Path('data/inventory-freshness.json').write_text(json.dumps({'verified_at':datetime.now(timezone.utc).isoformat(),'source_sha256':hashlib.sha256(after).hexdigest(),'refresh_run_id':os.environ['GITHUB_RUN_ID'],'homes':report['candidate_homes'],'communities':report['communities']},indent=2))
+          subprocess.run(['git','add','index.html','areas','communities','sitemap.xml','data/community-seo-registry.json','data/inventory-freshness.json'],check=True)
           changes=subprocess.run(['git','diff','--cached','--quiet'])
           if changes.returncode==0:
               print('No verified inventory or city-page changes; skip publishing')
