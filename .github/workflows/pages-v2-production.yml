@@ -57,6 +57,8 @@ jobs:
               m=re.search(r'(?m)^const\s+'+k+r'\s*=\s*',html)
               return json.JSONDecoder().raw_decode(html[m.end():])[0]
           feed={k:constant(k) for k in ('D','IMG','PH','PLANPH','HIMG','LU')}
+          for home in feed['D']['h']:
+              if str(home.get('pl','')).casefold()=='mccartney': home['pl']='McCartney'
           assert len(feed['D']['h'])>=100 and len(feed['D']['c'])>=20
           photos=p/'assets'/'inventory'
           photos.mkdir(parents=True,exist_ok=True)
@@ -149,6 +151,15 @@ jobs:
                   old=p.read_text()
                   new=re.sub(r'/assets/'+re.escape(name)+r'(?:\?v=[a-zA-Z0-9-]+)?', '/assets/'+name+'?v='+version,old)
                   if old!=new:p.write_text(new)
+          PY
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          root=Path('/tmp/site')
+          for p in root.rglob('*.html'):
+              old=p.read_text()
+              new=re.sub(r'\bMccartney\b','McCartney',old)
+              if old!=new:p.write_text(new)
           PY
           rm -rf /tmp/site/.github
       - name: Save verified media cache
