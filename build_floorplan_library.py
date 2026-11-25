@@ -121,7 +121,7 @@ for lot,entry in lots.items():
 master_path.write_text(json.dumps(master,separators=(',',':')))
 (root/'data/master-virtual-tours.json').write_text(json.dumps({'configurations':master,'reused':reused},indent=2))
 print('Exact configuration tour reuse:',reused)
-# Explicit owner-approved model-tour exception; never reuse floor drawings.
+# Explicit owner-approved Waterlin McCartney model media exception.
 homes={str(h['lot']).lower():h for h in feed['D']['h']}
 def is_mccartney(h,community):
  return h.get('cm')==community and str(h.get('pl','')).casefold()=='mccartney'
@@ -132,6 +132,14 @@ if len(donors)==1:
    lots.setdefault(lot,{'model':None}).update(tour=next(iter(donors)),tour_source='owner_approved_meadow_pointe_model_tour')
    print('Waterlin McCartney tour override',lot)
 else:print('Waterlin override skipped: Meadow Pointe unique tours',len(donors))
+# Select only a single unambiguous Meadow Pointe drawing configuration.
+drawing_donors={e['model'] for lot,e in lots.items() if e.get('model') and is_mccartney(homes[lot],'meadow-pointe')}
+if len(drawing_donors)==1:
+ for lot,h in homes.items():
+  if is_mccartney(h,'waterlin') and not lots.get(lot,{}).get('model'):
+   lots.setdefault(lot,{'tour':None}).update(model=next(iter(drawing_donors)),floorplan_source='owner_approved_meadow_pointe_model_floorplan')
+   print('Waterlin McCartney floorplan override',lot)
+else:print('Waterlin floorplan override skipped: Meadow Pointe unique configurations',len(drawing_donors))
 out={'models':library,'lots':lots}
 tour_index={}
 for lot,entry in lots.items():
@@ -143,4 +151,4 @@ for lot,entry in lots.items():
 (root/'data/virtual-tours.json').write_text(json.dumps({'unique_tours':len(tour_index),'tours':list(tour_index.values())},indent=2))
 print('Unique virtual tour URLs:',len(tour_index))
 (root/'data/floorplans.json').write_text(json.dumps(out,separators=(',',':')))
-print(json.dumps({'verified':sum(bool(e.get('model')) for e in lots.values()),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
+print(json.dumps({'verified':sum(bool(e.get('model')) and not e.get('floorplan_source') for e in lots.values()),'displayed_floorplans':sum(bool(e.get('model')) for e in lots.values()),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
