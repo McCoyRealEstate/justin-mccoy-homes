@@ -314,6 +314,21 @@ jobs:
           @media(max-width:700px){body header.jm-integrated-header .jm-brand .jm-brand-name{font-size:clamp(17px,5vw,22px)!important}body header.jm-integrated-header .jm-brand .jm-brand-subtitle{font-size:9px!important}body header.jm-integrated-header .jm-menu-bar{align-self:center!important}}
           .jm-menu-toggle:focus-visible,#jm-site-menu a:focus-visible{outline:3px solid #d8b372;outline-offset:2px}
           """
+          css+="""
+          body .hero{background:#081b2e!important;color:white!important}
+          body .hero:before{display:none!important}
+          body .hero h1{font:400 clamp(38px,5vw,62px)/1.06 Georgia,"Times New Roman",serif!important;letter-spacing:-.045em!important;margin:14px 0!important}
+          body .hero h1 em{color:#d8b372!important;font-style:normal}
+          body .hero p{color:#d3e0eb!important;font-size:16px!important;line-height:1.55!important}
+          body .hero .eyebrow{color:#d8b372!important;font-size:12px!important;letter-spacing:.18em!important;font-weight:800!important}
+          body header.jm-integrated-header{background:#071b30!important;border-bottom:1px solid #d8b37266!important}
+          body header.jm-integrated-header a[href^='tel:']{display:none!important}
+          body .float{position:fixed!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;left:auto!important;right:16px!important;display:block!important;z-index:20;max-width:calc(100vw - 32px);filter:drop-shadow(0 3px 9px #0004)}
+          body #connect-toggle{min-height:44px;border:1px solid #d8b372;border-radius:30px;padding:12px 20px;background:#d8b372;color:#071b30;font:800 14px system-ui;cursor:pointer}
+          body #connect-options{position:absolute;bottom:calc(100% + 8px);right:0;width:220px;max-width:calc(100vw - 32px);padding:0;background:transparent;border:0;display:grid;gap:8px}
+          body #connect-options[hidden]{display:none!important}
+          body #connect-options a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:30px;border:1px solid #d8b372;background:#102d49;color:white;text-decoration:none;font:800 13px system-ui;text-align:center}
+          """
           asset=root/'assets'/'page-spacing.css'
           asset.write_text(css)
           version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
@@ -331,6 +346,10 @@ jobs:
               if not page.is_file(): continue
               s=page.read_text()
               s=re.sub(r'</body>',lambda m:'<script defer src="/assets/site-navigation.js?v='+nav_version+'"></script>'+m.group(0),s,count=1,flags=re.I)
+              for script in ['jm-language.js','shared-connect.js']:
+                  sv=hashlib.sha256((root/'assets'/script).read_bytes()).hexdigest()[:12]
+                  s=re.sub(r'<script\\b[^>]*src=["\\\']/?assets/'+re.escape(script)+r'(?:\\?[^"\\\']*)?["\\\'][^>]*>\\s*</script>','',s,flags=re.I)
+                  s=re.sub(r'</body>',lambda m:'<script defer src="/assets/'+script+'?v='+sv+'"></script>'+m.group(0),s,count=1,flags=re.I)
               page.write_text(s)
           print('SHARED PAGE SPACING',version,len(pages))
           PY
