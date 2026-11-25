@@ -278,10 +278,20 @@ jobs:
           body .section-head{margin-bottom:16px}
           @media(max-width:620px){:root{--jm-hero-space:24px;--jm-section-space:28px;--jm-content-space:16px}body .hero h1{margin-block:10px!important}}
           """
+          css+="""
+          .jm-menu-bar{position:relative;background:#071b30;color:white;padding:0 16px;z-index:5;text-align:right}
+          .jm-menu-toggle{font:inherit;font-weight:700;color:#fff;background:transparent;border:0;margin:0;padding:10px 14px;min-height:44px;cursor:pointer}
+          #jm-site-menu{position:absolute;right:16px;top:100%;width:min(320px,calc(100vw - 32px));background:#102d49;color:white;padding:12px;border:1px solid #d8b372;border-radius:8px;box-shadow:0 12px 30px #0004;text-align:left;z-index:50}
+          #jm-site-menu[hidden]{display:none!important}
+          #jm-site-menu a{display:flex;align-items:center;min-height:44px;padding:10px 12px;color:white;text-decoration:none;border-bottom:1px solid #ffffff25}
+          #jm-site-menu a[aria-current=page]{color:#d8b372;font-weight:800}
+          #jm-site-menu .jm-menu-tour{background:#d8b372;color:#071b30;border-radius:6px;margin-top:8px;font-weight:800}
+          .jm-menu-toggle:focus-visible,#jm-site-menu a:focus-visible{outline:3px solid #d8b372;outline-offset:2px}
+          """
           asset=root/'assets'/'page-spacing.css'
           asset.write_text(css)
           version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
-          pages=[root/'index.html',root/'compare/index.html',root/'collections/index.html',* (root/'communities').glob('*.html'),* (root/'areas').glob('*.html')]
+          pages=[root/'index.html',root/'compare/index.html',root/'collections/index.html',root/'realtors/index.html',* (root/'communities').glob('*.html'),* (root/'areas').glob('*.html')]
           for page in pages:
               if not page.is_file(): continue
               s=page.read_text()
@@ -289,6 +299,12 @@ jobs:
               assert '</head>' in s.lower(), str(page)
               import re
               s=re.sub(r'</head>',lambda m:'<link rel="stylesheet" href="/assets/page-spacing.css?v='+version+'">'+m.group(0),s,count=1,flags=re.I)
+              page.write_text(s)
+          nav_version=hashlib.sha256((root/'assets/site-navigation.js').read_bytes()).hexdigest()[:12]
+          for page in pages:
+              if not page.is_file(): continue
+              s=page.read_text()
+              s=re.sub(r'</body>',lambda m:'<script defer src="/assets/site-navigation.js?v='+nav_version+'"></script>'+m.group(0),s,count=1,flags=re.I)
               page.write_text(s)
           print('SHARED PAGE SPACING',version,len(pages))
           PY
