@@ -229,6 +229,13 @@ jobs:
               css='<style id="rounded-listing-cards">.home,.home-card{border-radius:14px!important;overflow:hidden!important}.home>.visual,.home-card>img,.home-card>picture{border-radius:13px 13px 0 0!important}</style>'
               if 'id="rounded-listing-cards"' not in old:
                   p.write_text(old.replace('</head>',css+'</head>',1))
+          for p in root.rglob('*.html'):
+              old=p.read_text()
+              if '</head>' not in old: continue
+              css='<style id="unified-availability-badges">.home .status,#detailbody .kicker,.cp-status,.home-card :has(+ .home-card-top){display:inline-block!important;width:fit-content!important;max-width:100%;font-size:10px!important;font-weight:800!important;letter-spacing:.06em!important;text-transform:uppercase!important;line-height:1.4!important;padding:7px 9px!important;border-radius:3px!important;color:#47775e!important;background:#eaf3ec!important}.availability-badge[data-availability="other"]{color:#946d32!important;background:#f5ecd9!important}</style>'
+              js='<script id="unified-availability-script">(()=>{const sel=".home .status,#detailbody .kicker,.cp-status,.home-card :has(+ .home-card-top)";function sync(){document.querySelectorAll(sel).forEach(e=>{const t=e.textContent.trim().toLowerCase();if(!/^(move-in ready|under construction|coming soon|confirm availability|check availability)$/.test(t))return;e.classList.add("availability-badge");e.dataset.availability=t==="move-in ready"?"ready":"other"})}function init(){sync();new MutationObserver(sync).observe(document.body,{childList:true,subtree:true,characterData:true})}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init()})();</script>'
+              if 'id="unified-availability-badges"' not in old:
+                  p.write_text(old.replace('</head>',css+js+'</head>',1))
           for name in ('ownership-details.js','community-property-detail.js'):
               asset=root/'assets'/name
               version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
