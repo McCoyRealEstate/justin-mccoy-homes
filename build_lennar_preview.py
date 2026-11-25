@@ -235,6 +235,10 @@ try:
         # Keep existing garage and any other non-source fields unchanged.
         plan=resolve(state,src.get("plan"))
         report.setdefault("property_feature_audit",{})[k]={"collection":col,"homesite":{key:value for key,value in src.items() if re.search(r"garage|story|stories|feature|nextgen|tour|floorplan|amenit",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))},"plan":{key:value for key,value in plan.items() if re.search(r"garage|story|stories|feature|nextgen|tour|floorplan|amenit",key,re.I) and isinstance(value,(str,int,float,bool,type(None)))}}
+        plan_url=plan.get("url") or canon(src.get("url")).rsplit("/",1)[0]
+        report.setdefault("floorplan_source_audit",{})
+        if plan_url not in report["floorplan_source_audit"]:
+            report["floorplan_source_audit"][plan_url]={"collection":col,"lot":k,"plan_keys":list(plan),"homesite_keys":list(src),"plan_fields":{key:str(value)[:1800] for key,value in plan.items() if re.search(r"floor|garage|car|layout|story|stories|url|id",key,re.I)},"homesite_fields":{key:str(value)[:1000] for key,value in src.items() if re.search(r"floor|garage|car|layout|story|stories",key,re.I)}}
         changes={"a":src.get("address") or home.get("a"),"s":status,"bd":safe_num(src.get("beds"),home.get("bd")),"ba":safe_num(src.get("baths"),0)+.5*safe_num(src.get("halfBaths"),0),"sq":safe_num(src.get("sqft"),home.get("sq")),"pl":src.get("planName") or plan.get("name") or home.get("pl"),"miss":0}
         if not is_soon:
             price=safe_num(src.get("price"))
