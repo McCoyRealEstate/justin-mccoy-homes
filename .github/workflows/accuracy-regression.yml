@@ -1,0 +1,44 @@
+name: Inventory and mortgage accuracy regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Publish standalone Homepage V2']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate live inventory and calculator formula
+        run: |
+          node --check assets/ownership-details.js
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          (async()=>{
+            const get=async p=>{const r=await fetch('https://jus3d.com/'+p+'?audit='+Date.now(),{signal:AbortSignal.timeout(30000)});assert(r.ok,p+' HTTP '+r.status);return r.json()};
+            const f=await get('data/verified-homepage.json');
+            const t=await get('data/virtual-tours.json');
+            const photos=await get('data/photo-coverage.json');
+            const ids=f.D.h.map(h=>String(h.lot).toLowerCase());
+            assert.equal(new Set(ids).size,ids.length);
+            const tourIds=new Set(t.tours.flatMap(x=>x.homesites.map(y=>String(y).toLowerCase())));
+            console.log('Inventory',ids.length,'tour coverage',ids.filter(x=>tourIds.has(x)).length,'photo coverage',photos.counts);
+            const s=fs.readFileSync('assets/ownership-details.js','utf8');
+            const formula=s.match(/const p=Number\(price.value\).*?complete=hoaInput.value!==''&&cddInput.value!=='';/)?.[0];
+            assert(formula,'Calculator formula not found');
+            const calc=new Function('price','down','rate','term','taxRate','insurance','hoaInput','cddInput',formula+'return {total,complete};');
+            const run=(...v)=>calc(...v.map(value=>({value:String(value)})));
+            assert.equal(Math.round(run(310240,5,5.5,30,1,.5,233,0).total),2442);
+            assert.equal(Math.round(run(310240,5,5.5,30,1,.5,233,13).total),2455);
+            assert.equal(run(310240,5,5.5,30,1,.5,233,'').complete,false);
+            assert(Number.isFinite(run(310240,20,0,30,1,.5,233,0).total));
+            console.log('Mortgage regression passed: reference payment, CDD, unknown fees, zero interest');
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
