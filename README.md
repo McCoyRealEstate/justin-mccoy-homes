@@ -1,22 +1,26 @@
-# Justin McCoy Homes — Version 6 (test-first)
+# Jus3D.com — Central Florida new homes
 
-## Files
-- `index.html`: exact `public-page.html` from the supplied ZIP. No design edits.
-- `laptop-page.html`: original supplied laptop snapshot, for reference only; do not publish it.
-- `update_inventory.py`: conservative updater. Default is **dry run**.
-- `update.yml`: manual GitHub Actions workflow; initially **no schedule** until verified.
+Customer-facing inventory and community website maintained for Justin McCoy. Public Lennar sources are used for inventory; this repository is not an official Lennar system.
 
-## GitHub installation
-1. Keep your GitHub backup. Upload `index.html` to repository root (this restores the Claude design).
-2. Upload `update_inventory.py` to repository root.
-3. Replace `.github/workflows/update.yml` with the provided `update.yml` contents.
-4. Run workflow with `publish=false` and inspect the output. A green result means code executed, **not** that inventory matches Lennar. If any error, do not publish.
-5. Only after reviewing the output, run with `publish=true`.
+## Production architecture
 
-## Important limitations
-- Lennar's printable report can omit individual homesite links; this importer **refuses to add** a new home without a validated direct homesite link. It will report the issue instead of inventing links.
-- Coming Soon listings are preserved because plain HTTP cannot reliably expand Lennar's View More interface. They must be audited by the laptop browser process.
-- Missing available homes are checked individually. Removal is limited to 15 per run; for additional protection, removal proposals require explicit `--allow-deletions` and will otherwise block publication.
-- `IMPORTED` is never changed by the updater; optional laptop synchronization can be tested locally with `--laptop laptop-page.html` (but do not overwrite the original laptop copy).
-- Photos and image maps are never edited by the updater.
-- No schedule is enabled until live data and full listing coverage have been verified. After approval, schedule can be added; note GitHub cron uses UTC and daylight saving time must be accounted for.
+- `index.html`: inventory source and legacy baseline; do not delete.
+- `homepage-v2-preview.html`: current production homepage template despite its historical filename.
+- `build_lennar_preview.py`, `verify_lennar_preview.py`, `lennar_phase6_dry_run.py`, `lennar_phase8_finalize.py`: controlled inventory refresh and validation.
+- `generate_community_pages.py`, `generate_city_experience.py`, `generate_property_previews.py`: community, area and property presentation.
+- `build_floorplan_library.py`: verified media enrichment and explicitly approved reference exceptions.
+- `assets/ownership-details.js`: property amenities, ownership costs, mortgage estimates and media viewer.
+- `data/inventory-freshness.json`: refresh timestamp and unresolved listing exceptions.
+- `data/manual-tour-verifications.json`: manually observed tour outcomes.
+
+## Automation
+
+The hourly refresh workflow is `.github/workflows/lennar-phase8-auto-refresh.yml`. Publication requires the configured enable flag and successful validation. The Pages production workflow assembles and publishes the website and checks the live build identity. Live smoke, mobile floor plan, inventory/mortgage and virtual tour workflows provide additional regression coverage.
+
+A successful workflow does not establish that every source fact or third-party tour is independently verified. Preserve uncertainty labels and do not infer that a failed source request means a home sold.
+
+## Maintenance
+
+Review Actions logs and artifacts before changing production. Keep existing media and source identity safeguards, avoid unverified fee or incentive claims, and preserve rollback history. Do not remove legacy-named files solely because of their names. Check references and test changes before retiring workflows or assets.
+
+See [accuracy and compliance safeguards](docs/data-accuracy-and-compliance.md) and [product roadmap](docs/product-roadmap.md).
