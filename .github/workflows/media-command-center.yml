@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - name: Retrieve completed tour audit evidence
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,6 +93,9 @@ jobs:
           assert report['identity_valid'], 'Inventory identity unavailable or invalid'
           assert not errors, 'One or more report sources unavailable'
           PY
+      - name: Render visual dashboard
+        if: always()
+        run: python render_command_center.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,5 +103,6 @@ jobs:
           path: |
             command-center.json
             inventory-snapshot.json
+            command-center.html
           retention-days: 90
           if-no-files-found: warn
