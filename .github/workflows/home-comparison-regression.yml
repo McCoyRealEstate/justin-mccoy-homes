@@ -1,0 +1,45 @@
+name: Home comparison regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright && npx playwright install --with-deps chromium webkit
+      - run: |
+          node <<'JS'
+          const {chromium,webkit,devices}=require('playwright');
+          (async()=>{
+            for(const [engine,options] of [[chromium,{viewport:{width:1280,height:800}}],[webkit,devices['iPhone 13']]]){
+              const browser=await engine.launch();
+              try{
+                const page=await browser.newPage(options);
+                const response=await page.goto('https://jus3d.com/compare/?verify='+Date.now());
+                if(!response.ok())throw Error('Comparison page unavailable '+response.status());
+                const selects=page.locator('#selectors select');
+                await selects.nth(2).waitFor();
+                const feed=await (await page.request.get('https://jus3d.com/data/verified-homepage.json')).json();
+                const ids=feed.D.h.slice(0,3).map(h=>String(h.lot).trim().toLowerCase());
+                for(let i=0;i<3;i++)await selects.nth(i).selectOption(ids[i]);
+                if(await page.locator('thead th').count()!==4)throw Error('Expected three compared homes');
+                const prices=await page.locator('tbody tr').filter({has:page.getByRole('rowheader',{name:'Price',exact:true})}).locator('td').allTextContents();
+                for(let i=0;i<3;i++){const p=feed.D.h[i].p;if(typeof p==='number'&&p>0&&prices[i]!==p.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}))throw Error('Price mismatch')}
+                if(!await selects.nth(1).locator('option').filter({hasText: /./}).evaluateAll((opts,id)=>opts.some(o=>o.value===id&&o.disabled),ids[0]))throw Error('Duplicate selection allowed');
+                if(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Page horizontal overflow');
+                await page.getByRole('button',{name:'Clear comparison'}).click();
+                if(await page.locator('#results table').count())throw Error('Clear failed');
+                console.log(engine.name()+' comparison passed');
+              }finally{await browser.close()}
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
