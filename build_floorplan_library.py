@@ -83,6 +83,29 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
   library[key]=model;lots[lot]={'model':key,'tour':tour}
 cache_path.parent.mkdir(parents=True,exist_ok=True)
 cache_path.write_text(json.dumps(next_cache,separators=(',',':')))
+# Reuse only an unambiguous tour for the exact verified model configuration.
+def signature(model):
+ return json.dumps([model['code'],model['garage'],model['sqft'],model['beds'],model['baths'],model['floors']],sort_keys=True)
+master_path=cache_path.parent/'master-tours.json'
+try: master=json.loads(master_path.read_text())
+except (OSError,ValueError):master={}
+for lot,entry in lots.items():
+ if entry.get('tour'):
+  sig=signature(library[entry['model']])
+  records=master.setdefault(sig,{})
+  records[entry['tour']]={'url':entry['tour'],'last_seen':now,'source_lot':lot}
+reused=0
+for lot,entry in lots.items():
+ if entry.get('tour'):continue
+ candidates=master.get(signature(library[entry['model']]),{})
+ eligible=[u for u,v in candidates.items() if now-v['last_seen']<2592000 and urlparse(u).scheme=='https' and urlparse(u).hostname=='hd.lennar.com']
+ if len(eligible)==1:
+  entry['tour']=eligible[0]
+  entry['tour_source']='exact_configuration_library'
+  reused+=1
+master_path.write_text(json.dumps(master,separators=(',',':')))
+(root/'data/master-virtual-tours.json').write_text(json.dumps({'configurations':master,'reused':reused},indent=2))
+print('Exact configuration tour reuse:',reused)
 out={'models':library,'lots':lots}
 tour_index={}
 for lot,entry in lots.items():
