@@ -1,0 +1,22 @@
+{
+  "verifications": [
+    {
+      "url": "https://my.matterport.com/show/?m=XCuEENHu7WV",
+      "community": "Wellness Ridge",
+      "plan": "Delray",
+      "date": "2026-11-25",
+      "source": "site owner manual test on Jus3D.com",
+      "status": "user_verified",
+      "notes": "Play button required; tour worked."
+    },
+    {
+      "url": "https://my.matterport.com/show/?m=6iJs8Qc3SGN",
+      "community": "Knightsbridge",
+      "plan": "Dover",
+      "date": "2026-11-25",
+      "source": "site owner manual test on Jus3D.com",
+      "status": "user_verified",
+      "notes": "Play button opened fullscreen; positive user experience."
+    }
+  ]
+}
