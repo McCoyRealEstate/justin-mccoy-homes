@@ -335,7 +335,10 @@ jobs:
           asset=root/'assets'/'page-spacing.css'
           asset.write_text(css)
           version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
-          pages=[root/'index.html',root/'compare/index.html',root/'collections/index.html',root/'realtors/index.html',* (root/'communities').glob('*.html'),* (root/'areas').glob('*.html')]
+          # Discover public page entry points automatically; exclude historical previews and internal assets.
+          excluded={'preview','assets','data','docs','.github','admin','command-center'}
+          pages=sorted({root/'index.html',*(p for p in root.glob('*/index.html') if p.parent.name not in excluded and BeautifulSoup(p.read_text(),'html.parser').select_one('header .brand, header .logo')),*(root/'communities').glob('*.html'),*(root/'areas').glob('*.html')})
+          assert root/'appointments/index.html' in pages, 'Appointment page missing shared design'
           for page in pages:
               if not page.is_file(): continue
               s=page.read_text()
