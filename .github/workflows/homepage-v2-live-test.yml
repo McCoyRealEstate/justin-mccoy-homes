@@ -52,7 +52,13 @@ jobs:
               await community.goto('https://jus3d.com'+link+'?verify='+Date.now());
               if(await community.locator('link[rel=canonical]').getAttribute('href')!=='https://jus3d.com'+link)throw Error('Community canonical mismatch '+link);
               if(await community.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Community horizontal overflow '+link);
+              const slug=link.split('/').pop().replace(/\.html$/,'');
+              const expectedHomes=inventory.D.h.filter(h=>h.cm===slug).length;
               const cards=community.locator('.home-card');
+              if(expectedHomes===0){
+                if(await cards.count()!==0||!await community.getByRole('heading',{name:/Still interested in/}).count()||!await community.getByRole('link',{name:'Inquire About Future Availability'}).count())throw Error('Zero inventory fallback missing '+link);
+                console.log('ZERO INVENTORY FALLBACK VERIFIED '+link);
+              }else if(await cards.count()!==expectedHomes)throw Error('Community inventory count mismatch '+link+' expected '+expectedHomes+' actual '+await cards.count());
               if(await cards.count()!==await community.locator('.home-card .listing-photo img').count())throw Error('Missing listing image '+link);
               const images=community.locator('.advisor-photo, .listing-photo img, .community-monument img');
               await images.evaluateAll(imgs=>imgs.forEach(i=>i.loading='eager'));
