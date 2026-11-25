@@ -52,7 +52,7 @@ jobs:
             for(const t of blocked)for(const h of t.homes){
               if(!h.official_listing)continue;
               try{
-                const u=new URL(h.official_listing,'https://www.lennar.com');
+                const u=new URL(h.official_listing,'https://www.lennar.com/new-homes/florida/orlando/');
                 if(u.hostname!=='www.lennar.com'&&u.hostname!=='lennar.com')continue;
                 const response=await fetch(u,{redirect:'follow',signal:AbortSignal.timeout(20000)});
                 h.listing_http=response.status;h.listing_final_url=response.url;
