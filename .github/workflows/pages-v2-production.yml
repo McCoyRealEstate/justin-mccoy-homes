@@ -165,6 +165,16 @@ jobs:
           python generate_property_previews.py /tmp/site
           python generate_city_experience.py /tmp/site
           python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/site')
+          directory=json.loads((root/'data/verified-homepage.json').read_text())['D']['c']
+          assert isinstance(directory,dict), 'Unexpected community directory format'
+          missing=[slug for slug in directory if not (root/'communities'/(slug+'.html')).is_file()]
+          print('COMMUNITY PAGE COVERAGE',len(directory),'missing',missing)
+          assert not missing, 'Missing community pages: '+str(missing)
+          PY
+          python - <<'PY'
           from pathlib import Path
           from bs4 import BeautifulSoup
           root=Path('/tmp/site')
