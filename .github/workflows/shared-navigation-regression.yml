@@ -1,0 +1,51 @@
+name: Shared navigation regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  navigation:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright && npx playwright install --with-deps chromium webkit
+      - run: |
+          node <<'JS'
+          const {chromium,webkit,devices}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            for(const [engine,options] of [[chromium,{viewport:{width:1280,height:800}}],[webkit,devices['iPhone 13']]]){
+              const browser=await engine.launch();
+              try{
+                const page=await browser.newPage(options);
+                for(const path of ['/','/compare/','/collections/','/realtors/','/communities/meadow-pointe.html']){
+                  const response=await page.goto('https://jus3d.com'+path+'?verify='+Date.now());
+                  assert(response.ok(),path+' unavailable');
+                  const toggle=page.locator('.jm-menu-toggle'),menu=page.locator('#jm-site-menu');
+                  await toggle.waitFor();
+                  assert.equal(await toggle.count(),1);
+                  assert(!(await menu.isVisible()));
+                  await toggle.click();
+                  assert(await menu.isVisible());
+                  assert.equal(await toggle.getAttribute('aria-expanded'),'true');
+                  for(const href of ['/','/#homes','/#communities','/collections/','/compare/','/realtors/']){
+                    const link=menu.locator('a[href="'+href+'"]');
+                    assert(await link.isVisible(),path+' missing '+href);
+                    assert((await link.boundingBox()).height>=44);
+                  }
+                  assert(!(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2)),path+' overflow');
+                  await page.keyboard.press('Escape');
+                  assert(!(await menu.isVisible()));
+                  console.log(engine.name(),path,'navigation passed');
+                }
+              }finally{await browser.close()}
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
