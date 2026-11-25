@@ -204,6 +204,14 @@ jobs:
           Path('/tmp/inventory-integrity.json').write_text(json.dumps(report,indent=2))
           assert not any(e['issue']=='missing or duplicate homesite identity' for e in errors), 'Ambiguous homesite identity; publication blocked'
           PY
+          python - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          root=Path('/tmp/site')
+          files=['index.html','assets/ownership-details.js','data/verified-homepage.json']
+          manifest={'commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
+          (root/'data/build-version.json').write_text(json.dumps(manifest))
+          PY
           rm -rf /tmp/site/.github
       - name: Retain inventory integrity report
         if: always()
@@ -239,3 +247,22 @@ jobs:
       - uses: actions/deploy-pages@v4
         if: steps.first_deployment.outcome == 'failure'
         id: deployment
+      - name: Verify exact published build
+        run: |
+          python - <<'PY'
+          import json,os,time,urllib.request,hashlib
+          for attempt in range(12):
+              try:
+                  def get(path):
+                      return urllib.request.urlopen('https://jus3d.com/'+path+'?verify='+str(time.time_ns()),timeout=20).read()
+                  m=json.loads(get('data/build-version.json'))
+                  assert m['run_id']==os.environ['GITHUB_RUN_ID'] and m['commit']==os.environ['GITHUB_SHA'], 'Build identity mismatch'
+                  for path,digest in m['files'].items():
+                      assert hashlib.sha256(get(path)).hexdigest()==digest, 'Live file mismatch: '+path
+                  print('LIVE BUILD VERIFIED',m['commit'],m['run_id'])
+                  break
+              except Exception as e:
+                  print('Verification attempt',attempt+1,str(e))
+                  if attempt==11: raise
+                  time.sleep(10)
+          PY
