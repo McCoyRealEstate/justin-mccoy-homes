@@ -113,7 +113,14 @@ jobs:
             }));
             await browser.close();
             const counts={};for(const r of results)counts[r.status]=(counts[r.status]||0)+1;
-            fs.writeFileSync('virtual-tour-audit.json',JSON.stringify({total:results.length,counts,results},null,2));
+            const evidenceCounts={};
+            for(const r of results){
+              const manual=r.manual_verification?.status;
+              r.evidence_status=manual==='user_verified'?'manual_playback_observed':manual==='login_required'?'manual_login_observed':r.status;
+              evidenceCounts[r.evidence_status]=(evidenceCounts[r.evidence_status]||0)+1;
+            }
+            console.log('COMBINED EVIDENCE SUMMARY',JSON.stringify(evidenceCounts));
+            fs.writeFileSync('virtual-tour-audit.json',JSON.stringify({total:results.length,counts,evidenceCounts,results},null,2));
             console.log('AUDIT SUMMARY',JSON.stringify(counts));
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
