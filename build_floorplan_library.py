@@ -29,7 +29,10 @@ def extract(h):
   site=one([v for v in st.values() if isinstance(v,dict) and v.get('__typename')=='HomesiteType' and str(v.get('lotid','')).lower()==lot and canon(v.get('url'))==canon(url)])
   plan=st[site['plan']['__ref']]
   if canon(plan.get('url'))!=canon(url).rsplit('/',1)[0] or canon(plan.get('url')).rsplit('/',1)[0]!=h['collection_url']:raise ValueError('collection mismatch')
-  source_specs=(site.get('sqft'),site.get('beds'),site.get('baths',0)+.5*site.get('halfBaths',0))
+  raw_baths=site.get('baths',0)
+  # Fractional totals already include the half bath.
+  total_baths=raw_baths if raw_baths%1 else raw_baths+.5*site.get('halfBaths',0)
+  source_specs=(site.get('sqft'),site.get('beds'),total_baths)
   inventory_specs=(h['sq'],h['bd'],h['ba'])
   if source_specs!=inventory_specs:raise ValueError(f'spec mismatch: source={source_specs}, inventory={inventory_specs}, raw baths={site.get("baths")}, half={site.get("halfBaths")}')
   garage=site.get('garages')
@@ -81,5 +84,14 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
 cache_path.parent.mkdir(parents=True,exist_ok=True)
 cache_path.write_text(json.dumps(next_cache,separators=(',',':')))
 out={'models':library,'lots':lots}
+tour_index={}
+for lot,entry in lots.items():
+ if entry.get('tour'):
+  item=tour_index.setdefault(entry['tour'],{'url':entry['tour'],'homesites':[],'models':[]})
+  item['homesites'].append(lot)
+  code=library[entry['model']]['code']
+  if code not in item['models']:item['models'].append(code)
+(root/'data/virtual-tours.json').write_text(json.dumps({'unique_tours':len(tour_index),'tours':list(tour_index.values())},indent=2))
+print('Unique virtual tour URLs:',len(tour_index))
 (root/'data/floorplans.json').write_text(json.dumps(out,separators=(',',':')))
 print(json.dumps({'verified':len(lots),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
