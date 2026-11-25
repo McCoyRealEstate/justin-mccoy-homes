@@ -261,6 +261,38 @@ jobs:
           assert not any(e['issue']=='missing or duplicate homesite identity' for e in errors), 'Ambiguous homesite identity; publication blocked'
           PY
           python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          root=Path('/tmp/site')
+          css="""/* Shared public page rhythm; preserve typography and interactive controls. */
+          :root{--jm-hero-space:36px;--jm-section-space:36px;--jm-content-space:24px}
+          body .hero{padding-block:var(--jm-hero-space)!important}
+          body .hero:has(>.hero-in){padding-block:0!important}
+          body .hero>.hero-in{padding-block:var(--jm-hero-space)!important}
+          body .hero h1{margin-block:12px!important}
+          body .hero p{margin-block:8px 0!important;line-height:1.5}
+          body .section{padding-block:var(--jm-section-space)}
+          body main:not(dialog main),body .content{padding-top:var(--jm-content-space)}
+          body .section-head{margin-bottom:16px}
+          @media(max-width:620px){:root{--jm-hero-space:24px;--jm-section-space:28px;--jm-content-space:16px}body .hero h1{margin-block:10px!important}}
+          """
+          asset=root/'assets'/'page-spacing.css'
+          asset.write_text(css)
+          version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
+          pages=[root/'index.html',root/'compare/index.html',root/'collections/index.html',* (root/'communities').glob('*.html'),* (root/'areas').glob('*.html')]
+          for page in pages:
+              if not page.is_file(): continue
+              s=page.read_text()
+              soup=BeautifulSoup(s,'html.parser')
+              if not soup.select_one('.hero') and not soup.select_one('main'): continue
+              assert '</head>' in s.lower(), str(page)
+              import re
+              s=re.sub(r'</head>',lambda m:'<link rel="stylesheet" href="/assets/page-spacing.css?v='+version+'">'+m.group(0),s,count=1,flags=re.I)
+              page.write_text(s)
+          print('SHARED PAGE SPACING',version,len(pages))
+          PY
+          python - <<'PY'
           import os,json,hashlib
           from pathlib import Path
           root=Path('/tmp/site')
