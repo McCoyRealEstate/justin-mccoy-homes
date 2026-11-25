@@ -164,6 +164,18 @@ jobs:
           python generate_property_previews.py /tmp/site
           python generate_city_experience.py /tmp/site
           python - <<'PY'
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          root=Path('/tmp/site')
+          for folder in ('communities','areas'):
+              for p in (root/folder).glob('*.html'):
+                  soup=BeautifulSoup(p.read_text(),'html.parser')
+                  if not soup.body: continue
+                  script=soup.new_tag('script',src='/assets/inventory-freshness.js',defer=True)
+                  soup.body.append(script)
+                  p.write_text(str(soup))
+          PY
+          python - <<'PY'
           import hashlib,re
           from pathlib import Path
           root=Path('/tmp/site')
