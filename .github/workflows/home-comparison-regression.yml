@@ -71,6 +71,21 @@ jobs:
                 await selects.nth(2).waitFor();
                 if(await selects.nth(0).inputValue()!=='')throw Error('Cleared selection returned');
                 if(await page.locator('#results table').count())throw Error('Clear failed');
+                await page.goto('https://jus3d.com/?verify='+Date.now());
+                await page.waitForFunction(()=>!!window.homeComparison);
+                await page.evaluate(ids=>{window.homeComparison.write([]);for(const id of ids){const a=document.createElement('a');a.href='/compare/?home='+id;document.body.append(a);a.click();a.remove()}},ids);
+                const tray=page.getByRole('complementary',{name:'Home comparison'});
+                await tray.getByRole('button',{name:'View selections (3/3)'}).waitFor();
+                if(new URL(page.url()).pathname!=='/')throw Error('Adding homes interrupted browsing');
+                await tray.getByRole('button',{name:'View selections (3/3)'}).click();
+                await tray.getByRole('button',{name:/^Remove /}).first().click();
+                await tray.getByRole('button',{name:'Hide selections (2/3)'}).waitFor();
+                await page.reload();
+                await tray.getByRole('button',{name:'View selections (2/3)'}).waitFor();
+                await tray.getByRole('link',{name:'Compare Homes'}).click();
+                await page.locator('#selectors select').nth(2).waitFor();
+                if(await page.locator('#selectors select').nth(0).inputValue()!==ids[1])throw Error('Tray comparison selection mismatch');
+                console.log('Persistent comparison tray passed',engine.name());
                 console.log(engine.name()+' comparison passed');
               }finally{await browser.close()}
             }
