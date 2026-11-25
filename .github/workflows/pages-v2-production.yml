@@ -300,7 +300,8 @@ jobs:
             body header.jm-integrated-header>.navin,body header.jm-integrated-header>.wrap{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:calc(100% - 32px);min-height:68px;height:auto!important}
             body header.jm-integrated-header nav:not(#jm-site-menu){display:none!important}
             body header.jm-integrated-header .brand,body header.jm-integrated-header .logo{flex:1 1 auto;min-width:0;font-size:clamp(16px,4.5vw,22px)!important;letter-spacing:-.04em;line-height:1.15;white-space:nowrap}
-            body header.jm-integrated-header .brand span{display:block;font-size:9px!important;letter-spacing:.08em;white-space:normal}
+            body header.jm-integrated-header .brand span{display:inline;font-size:inherit!important;letter-spacing:inherit;white-space:nowrap}
+            body header.jm-integrated-header .brand small{display:block;font-size:9px!important;letter-spacing:.12em;white-space:nowrap}
             body header.jm-integrated-header #jm-language{flex:0 1 104px!important;width:104px!important;min-width:0!important;max-width:104px!important;margin:0!important;font-size:12px!important;order:2}
             body header.jm-integrated-header .jm-menu-bar{order:3;flex:0 0 44px}
             body header.jm-integrated-header #jm-site-menu{display:block;flex-direction:column;width:min(320px,calc(100vw - 32px));right:0}
