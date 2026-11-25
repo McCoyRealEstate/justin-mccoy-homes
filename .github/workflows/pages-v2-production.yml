@@ -279,7 +279,11 @@ jobs:
           @media(max-width:620px){:root{--jm-hero-space:24px;--jm-section-space:28px;--jm-content-space:16px}body .hero h1{margin-block:10px!important}}
           """
           css+="""
-          .jm-menu-bar{position:relative;background:#071b30;color:white;padding:0 16px;z-index:5;text-align:right}
+          .jm-menu-bar{position:relative;flex:0 0 auto;color:white;padding:0;z-index:25;text-align:right}
+          .jm-integrated-header{position:relative;z-index:26}
+          .jm-integrated-header .jm-menu-toggle{font-size:24px;width:44px;padding:0;line-height:1}
+          .jm-integrated-header #jm-site-menu{right:0}
+          @media(max-width:620px){body:has(.float) .jm-integrated-header a[href^='tel:']{display:none!important}.jm-integrated-header .navin{gap:8px}.jm-integrated-header .logo{flex-shrink:1;min-width:0}.jm-integrated-header .jm-menu-bar{margin-left:0}}
           .jm-menu-toggle{font:inherit;font-weight:700;color:#fff;background:transparent;border:0;margin:0;padding:10px 14px;min-height:44px;cursor:pointer}
           #jm-site-menu{position:absolute;right:16px;top:100%;width:min(320px,calc(100vw - 32px));background:#102d49;color:white;padding:12px;border:1px solid #d8b372;border-radius:8px;box-shadow:0 12px 30px #0004;text-align:left;z-index:50}
           #jm-site-menu[hidden]{display:none!important}
