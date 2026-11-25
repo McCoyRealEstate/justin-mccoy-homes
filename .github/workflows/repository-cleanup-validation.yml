@@ -1,0 +1,56 @@
+name: Repository cleanup validation
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [maintenance/repository-cleanup]
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.event_name == 'push' || github.head_ref == 'maintenance/repository-cleanup'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify only retired previews are deleted and no references remain
+        run: |
+          git fetch origin main
+          python - <<'PY'
+          import subprocess,re
+          from pathlib import Path
+          base=subprocess.check_output(['git','merge-base','HEAD','origin/main'],text=True).strip()
+          changes=subprocess.check_output(['git','diff','--name-status',base,'HEAD'],text=True).splitlines()
+          allowed={'preview/community-design/'+n+'.html' for n in ['hidden-ridge','index','meadow-pointe','sugarloaf-ridge','waterlin','waterstone']}|{'preview/homepage-design/index.html','redesign-preview.html'}
+          deleted=set()
+          for line in changes:
+              status,path=line.split('\t',1)
+              if status=='D':
+                  assert path in allowed,line
+                  deleted.add(path)
+              else:
+                  assert status=='A' and path=='.github/workflows/repository-cleanup-validation.yml',line
+          assert deleted==allowed,deleted
+          paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          hits=[]
+          for name in filter(None,paths):
+              if name=='.github/workflows/repository-cleanup-validation.yml':continue
+              p=Path(name)
+              if p.suffix.lower() not in {'.html','.js','.py','.yml','.yaml','.json','.md','.css','.xml','.txt'}:continue
+              for i,line in enumerate(p.read_text(errors='replace').splitlines(),1):
+                  if re.search(r'preview/(community-design|homepage-design)|redesign-preview\.html',line):
+                      if name=='.github/workflows/pages-v2-production.yml' and line.strip()=='rm -f /tmp/site/redesign-preview.html':continue
+                      hits.append((name,i,line[:200]))
+          print('Dependency references:',hits)
+          assert not hits,hits
+          print('Verified retired preview deletions:',len(deleted))
+          PY
+      - name: Syntax checks
+        run: |
+          python -m compileall -q .
+          for f in assets/*.js; do node --check "$f"; done
