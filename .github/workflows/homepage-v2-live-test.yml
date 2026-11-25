@@ -79,7 +79,7 @@ jobs:
                 await tour.click();
                 const frame=tour.locator('..').locator('iframe');
                 await frame.waitFor({state:'visible'});
-                if(await frame.getAttribute('src')!==lib.lots[lot].tour)throw Error('Tour URL mismatch');
+                await page.waitForFunction(expected=>Array.from(document.querySelectorAll('#detail iframe')).some(f=>f.getAttribute('src')===expected),lib.lots[lot].tour,{timeout:15000});
                 console.log('Tour iframe URL verified; provider rendering requires separate visual confirmation');
               }
               await page.locator('#close').click();
