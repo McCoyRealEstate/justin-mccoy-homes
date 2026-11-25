@@ -1,0 +1,57 @@
+name: Appointment calendar regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  appointments:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright && npx playwright install --with-deps chromium webkit
+      - run: |
+          node <<'JS'
+          const {chromium,webkit,devices}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            for(const [engine,opts] of [[chromium,{viewport:{width:1280,height:800}}],[webkit,devices['iPhone 13']]]){
+              const browser=await engine.launch();
+              try{
+                const page=await browser.newPage({...opts,timezoneId:'America/New_York'});
+                const response=await page.goto('https://jus3d.com/appointments/?verify='+Date.now());
+                assert(response.ok());
+                const request=page.locator('#request'),slots=page.locator('#slots');
+                assert(await request.isDisabled());
+                assert(await slots.isDisabled());
+                assert.equal(await page.locator('input,textarea,form').count(),0,'Unexpected data collection controls');
+                await page.locator('#next').click();
+                const heading=await page.locator('#month').innerText();
+                const month=new Date(heading+' 1');
+                for(let dow=0;dow<7;dow++){
+                  const d=1+(dow-month.getDay()+7)%7;
+                  const day=page.locator('#days button').filter({hasText:new RegExp('^'+d+'$')});
+                  assert.equal(await day.count(),1);
+                  assert.equal(await day.evaluate(e=>e.classList.contains('off')),[2,3].includes(dow));
+                  await day.click();
+                  assert(await request.isDisabled());
+                  const values=await slots.locator('option').evaluateAll(es=>es.map(e=>e.value).filter(Boolean));
+                  assert.equal(values.length,dow===0?25:29);
+                  assert.equal(values[0],dow===0?'11:00 AM':'10:00 AM');
+                  assert.equal(values[values.length-1],'5:00 PM');
+                  await slots.selectOption('5:00 PM');
+                  assert(await request.isEnabled());
+                }
+                assert.equal(await page.locator('main a[href^="tel:"]').count(),1);
+                assert(!(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2)));
+                console.log(engine.name(),'all seven days, approval markers, selection reset and no personal data form passed');
+              }finally{await browser.close()}
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
