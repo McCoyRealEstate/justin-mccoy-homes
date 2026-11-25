@@ -29,7 +29,9 @@ def extract(h):
   site=one([v for v in st.values() if isinstance(v,dict) and v.get('__typename')=='HomesiteType' and str(v.get('lotid','')).lower()==lot and canon(v.get('url'))==canon(url)])
   plan=st[site['plan']['__ref']]
   if canon(plan.get('url'))!=canon(url).rsplit('/',1)[0] or canon(plan.get('url')).rsplit('/',1)[0]!=h['collection_url']:raise ValueError('collection mismatch')
-  if (site.get('sqft'),site.get('beds'),site.get('baths',0)+.5*site.get('halfBaths',0))!=(h['sq'],h['bd'],h['ba']):raise ValueError('spec mismatch')
+  source_specs=(site.get('sqft'),site.get('beds'),site.get('baths',0)+.5*site.get('halfBaths',0))
+  inventory_specs=(h['sq'],h['bd'],h['ba'])
+  if source_specs!=inventory_specs:raise ValueError(f'spec mismatch: source={source_specs}, inventory={inventory_specs}, raw baths={site.get("baths")}, half={site.get("halfBaths")}')
   garage=site.get('garages')
   if type(garage)!=int or not 0<=garage<=6:raise ValueError('unknown garage')
   floors=[]
@@ -40,7 +42,7 @@ def extract(h):
     if urlparse(u).scheme=='https' and urlparse(u).hostname=='cdn.lennar.com' and urlparse(u).path.lower().endswith(('.svg','.png','.jpg','.webp','.jpeg')):variants[k]=u
    if 'default' not in variants:raise ValueError('missing drawing')
    floors.append({'name':f['name'],'variants':variants})
-  if len(floors)!=site.get('stories') or not floors or not plan.get('number'):raise ValueError('floor count or model')
+  if len(floors)!=site.get('stories') or not floors or not plan.get('number'):raise ValueError(f'floor count or model: drawings={len(floors)}, stories={site.get("stories")}, code={plan.get("number")}')
   tour=site.get('virtualTourUrl') or plan.get('virtualTourUrl')
   if not isinstance(tour,str) or urlparse(tour).scheme!='https' or urlparse(tour).hostname!='hd.lennar.com':tour=None
   model={'code':plan['number'],'garage':garage,'sqft':h['sq'],'beds':h['bd'],'baths':h['ba'],'floors':floors}
