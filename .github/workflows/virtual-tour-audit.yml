@@ -1,0 +1,72 @@
+name: Virtual tour link and browser audit
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/virtual-tour-audit.yml'
+  schedule:
+    - cron: '30 10 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright && npx playwright install --with-deps chromium
+      - name: Audit all published links
+        run: |
+          cat > audit.cjs <<'JS'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+          (async()=>{
+            const response=await fetch('https://jus3d.com/data/virtual-tours.json',{signal:AbortSignal.timeout(30000)});
+            if(!response.ok)throw Error('Catalog HTTP '+response.status);
+            const catalog=await response.json();
+            const tours=[...new Map(catalog.tours.map(t=>[t.url,t])).values()];
+            if(!tours.length)throw Error('Empty catalog');
+            const browser=await chromium.launch({headless:true});
+            const results=[];
+            let next=0;
+            await Promise.all(Array.from({length:3},async()=>{
+              while(next<tours.length){
+                const t=tours[next++], start=Date.now();
+                const result={...t,checked_at:new Date().toISOString()};
+                const context=await browser.newContext({viewport:{width:390,height:844}});
+                try{
+                  if(new URL(t.url).protocol!=='https:'||new URL(t.url).hostname!=='hd.lennar.com')throw Error('Unexpected URL');
+                  const page=await context.newPage();
+                  const errors=[];
+                  page.on('pageerror',e=>errors.push(String(e).slice(0,200)));
+                  const r=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:30000});
+                  result.http=r?.status();
+                  result.final_url=page.url();
+                  result.frame_policy=await r?.headerValue('x-frame-options');
+                  result.csp=await r?.headerValue('content-security-policy');
+                  await page.waitForTimeout(5000);
+                  result.title=await page.title();
+                  result.frames=page.frames().map(f=>f.url());
+                  result.visible_canvas=await page.locator('canvas:visible').count();
+                  result.errors=errors;
+                  result.status=result.http>=400?'http_error':'reachable_playback_unconfirmed';
+                  if(result.frame_policy&&/deny|sameorigin/i.test(result.frame_policy))result.status='embedding_restricted';
+                  if(/page not found|access denied|404|unavailable/i.test(result.title))result.status='suspected_error_page';
+                }catch(e){result.status='navigation_failed';result.error=String(e)}
+                finally{result.elapsed_ms=Date.now()-start;await context.close();results.push(result);console.log(JSON.stringify(result))}
+              }
+            }));
+            await browser.close();
+            const counts={};for(const r of results)counts[r.status]=(counts[r.status]||0)+1;
+            fs.writeFileSync('virtual-tour-audit.json',JSON.stringify({total:results.length,counts,results},null,2));
+            console.log('AUDIT SUMMARY',JSON.stringify(counts));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node audit.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: virtual-tour-audit
+          path: virtual-tour-audit.json
