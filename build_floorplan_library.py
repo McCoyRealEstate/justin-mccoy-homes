@@ -1,5 +1,5 @@
 """Read-only media enrichment; never changes source inventory."""
-import json,sys,hashlib,concurrent.futures
+import json,sys,hashlib,concurrent.futures,time
 from pathlib import Path
 from urllib.parse import urlparse,urljoin
 import requests
@@ -8,7 +8,11 @@ root=Path(sys.argv[1])
 feed=json.loads((root/'data/verified-homepage.json').read_text())
 base='https://www.lennar.com/new-homes/florida/orlando/'
 def read(url):
- r=requests.get(url,timeout=18,headers={'User-Agent':'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36'})
+ for attempt in range(3):
+  r=requests.get(url,timeout=18,headers={'User-Agent':'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36'})
+  if r.status_code not in (429,502,503,504) or attempt==2:break
+  delay=r.headers.get('Retry-After','')
+  time.sleep(min(60,max(2,int(delay))) if delay.isdigit() else 5*(2**attempt))
  r.raise_for_status()
  if urlparse(r.url).path.rstrip('/').lower()!=urlparse(url).path.rstrip('/').lower():raise ValueError('redirect')
  return json.loads(BeautifulSoup(r.text,'html.parser').find('script',id='__NEXT_DATA__').string)['props']['pageProps']['initialApolloState']
@@ -43,7 +47,7 @@ def extract(h):
   return lot,model,tour,None
  except Exception as e:return lot,None,None,str(e)[:140]
 library={};lots={};errors={}
-with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
  for lot,model,tour,error in pool.map(extract,feed['D']['h']):
   if error:errors[lot]=error;continue
   key=hashlib.sha256(json.dumps(model,sort_keys=True).encode()).hexdigest()
