@@ -167,6 +167,34 @@ jobs:
           (root/'data/photo-coverage.json').write_text(json.dumps(report,indent=2))
           print('PHOTO COVERAGE',json.dumps(report['counts']))
           PY
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw, ImageFont
+          from bs4 import BeautifulSoup
+          p=Path('/tmp/site')
+          for slug,title,headline,accent,description in [
+              ('compare','Compare Your Favorite Homes | Justin McCoy','Compare your','favorite homes.','Explore up to three Lennar homes side by side with Justin McCoy, New Home Consultant.'),
+              ('collections','Your Next Chapter Starts Here | Justin McCoy','Your next','chapter starts here.','Explore your shared collection of Central Florida new homes with Justin McCoy, New Home Consultant.')]:
+              im=Image.open(p/'og-justin-mccoy-v4.png').convert('RGB')
+              d=ImageDraw.Draw(im)
+              d.rectangle((35,35,810,305),fill='#10263e')
+              font=lambda n:ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',n)
+              d.text((60,65),'LENNAR ORLANDO',font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',23),fill='#d8b372')
+              d.text((56,120),headline,font=font(58),fill='white')
+              d.text((56,195),accent,font=font(53),fill='#d8b372')
+              name='og-'+slug+'-v1.png'
+              im.save(p/name,optimize=True)
+              page=p/slug/'index.html'
+              soup=BeautifulSoup(page.read_text(),'html.parser')
+              tags={'og:title':title,'og:description':description,'og:image':'https://jus3d.com/'+name,'og:image:width':'1200','og:image:height':'630','og:image:alt':headline+' '+accent+' — Justin McCoy','og:type':'website','og:site_name':'Justin McCoy | New Home Consultant','twitter:card':'summary_large_image','twitter:title':title,'twitter:description':description,'twitter:image':'https://jus3d.com/'+name}
+              for key,value in tags.items():
+                  attr='property' if key.startswith('og:') else 'name'
+                  for old in soup.find_all('meta',attrs={attr:key}):old.decompose()
+                  soup.head.append(soup.new_tag('meta',attrs={attr:key,'content':value}))
+              page.write_text(str(soup),encoding='utf-8')
+              assert Image.open(p/name).size==(1200,630)
+              print('Share preview generated:',slug,name)
+          PY
           python generate_property_previews.py /tmp/site
           python generate_city_experience.py /tmp/site
           python - <<'PY'
