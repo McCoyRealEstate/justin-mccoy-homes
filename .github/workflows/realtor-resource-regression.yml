@@ -41,7 +41,9 @@ jobs:
                     assert(result.ok(),'Broken internal resource '+href);
                   }
                 }
-                assert.equal(await page.getByRole('link',{name:'Request Current Details'}).getAttribute('href'),'mailto:Justin.McCoy@Lennar.com?subject=Current%20Realtor%20Incentives%20and%20Commissions');
+                const sms=await page.getByRole('link',{name:'Text for Current Incentives'}).getAttribute('href');
+                assert.equal(sms,'sms:+14075725398'+(engine.name()==='webkit'?'&':'?')+'body='+encodeURIComponent("Hi Justin! Could you send me this week's current Lennar buyer incentives and Realtor commission opportunities? Thank you!"));
+                assert.equal(await page.getByRole('link',{name:'Schedule a Tour'}).getAttribute('href'),'/appointments/');
                 console.log(engine.name()+' Realtor resource checks passed');
               }finally{await browser.close()}
             }
