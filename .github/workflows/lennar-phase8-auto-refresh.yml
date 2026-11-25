@@ -131,7 +131,7 @@ jobs:
               Path('index.html').write_bytes(after)
           subprocess.run(['git','config','user.name','Lennar Inventory Bot'],check=True)
           subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],check=True)
-          Path('data/inventory-freshness.json').write_text(json.dumps({'verified_at':datetime.now(timezone.utc).isoformat(),'source_sha256':hashlib.sha256(after).hexdigest(),'refresh_run_id':os.environ['GITHUB_RUN_ID'],'homes':report['candidate_homes'],'communities':report['communities']},indent=2))
+          Path('data/inventory-freshness.json').write_text(json.dumps({'verified_at':datetime.now(timezone.utc).isoformat(),'source_sha256':hashlib.sha256(after).hexdigest(),'refresh_run_id':os.environ['GITHUB_RUN_ID'],'homes':report['candidate_homes'],'communities':report['communities'],'held_removals':report.get('held_removals',[]),'verification_status':'partial' if report.get('held_removals') else 'complete'},indent=2))
           subprocess.run(['git','add','index.html','areas','communities','sitemap.xml','data/community-seo-registry.json','data/inventory-freshness.json'],check=True)
           changes=subprocess.run(['git','diff','--cached','--quiet'])
           if changes.returncode==0:
