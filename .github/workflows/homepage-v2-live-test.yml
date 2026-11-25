@@ -36,7 +36,13 @@ jobs:
             if((await page.locator('meta[name=robots]').count())&&(await page.locator('meta[name=robots]').first().getAttribute('content')).includes('noindex'))throw Error('Homepage blocked from indexing');
             const source=await page.request.get('https://jus3d.com/inventory-source.html?verify='+Date.now());
             if(!source.ok()||!(await source.text()).includes('const D'))throw Error('Inventory source unavailable');
-            await page.waitForFunction(()=>document.querySelector('#count')?.textContent.match(/Inventory updated (every 2 hours|hourly)/));
+            const freshnessResponse=await page.request.get('https://jus3d.com/data/inventory-freshness.json?verify='+Date.now());
+            if(!freshnessResponse.ok())throw Error('Inventory freshness metadata unavailable');
+            const freshness=await freshnessResponse.json();
+            const age=Date.now()-Date.parse(freshness.verified_at);
+            const expected=age>=0&&age<=10800000&&freshness.verification_status==='complete'?'Inventory verified':'Confirm current availability';
+            await page.waitForFunction(expected=>document.querySelector('#count')?.textContent.includes(expected)&&document.querySelector('#count')?.textContent.includes('Last checked'),expected);
+            console.log('Inventory freshness display verified: '+expected);
             const counts=await page.locator('#community-count').innerText();
             const links=await page.locator('#community-results a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
             if(links.length<20||links.length!==parseInt(counts)||links.some(x=>!x.startsWith('/communities/')))throw Error('Community directory mismatch: '+counts);
