@@ -137,6 +137,30 @@ jobs:
           page.write_text(page.read_text().replace('https://jus3d.com/og-preview.png','https://jus3d.com/og-justin-mccoy-v4.png').replace('Find a Home. Build Your Legacy. | Jus3D','Find a Home. Build Your Legacy. | Justin McCoy').replace('<meta name="twitter:card"','<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Justin McCoy, Lennar New Home Consultant in Central Florida"><meta name="twitter:card"'))
           PY
           python build_floorplan_library.py /tmp/site || echo 'Media enrichment unavailable; request buttons retained'
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from collections import Counter
+          root=Path('/tmp/site')
+          f=json.loads((root/'data/verified-homepage.json').read_text())
+          def valid(v):
+              if type(v) is int: return 0<=v<len(f['PH']) and valid(f['PH'][v])
+              if not isinstance(v,str): return False
+              if v.startswith('/assets/inventory/'): return (root/v.lstrip('/')).is_file()
+              return v.startswith(('https://cdn.lennar.com/','https://lennar.bynder.com/','https://www.lennar.com/'))
+          rows=[]
+          for h in f['D']['h']:
+              lot=str(h['lot'])
+              key=h['cm']+'|'+str(h.get('pl','')).strip().lower()
+              kind='missing'
+              if any(valid(f['HIMG'].get(k)) for k in (lot,lot.lower(),lot.upper())): kind='listing'
+              elif valid(f['PLANPH'].get(key)): kind='same_community_plan'
+              elif valid(f['IMG'].get(h['cm'])): kind='community_monument'
+              rows.append({'lot':lot,'community':h['cm'],'plan':h.get('pl'),'photo_source':kind})
+          report={'counts':dict(Counter(r['photo_source'] for r in rows)),'homes':rows}
+          (root/'data/photo-coverage.json').write_text(json.dumps(report,indent=2))
+          print('PHOTO COVERAGE',json.dumps(report['counts']))
+          PY
           python generate_property_previews.py /tmp/site
           python generate_city_experience.py /tmp/site
           python - <<'PY'
