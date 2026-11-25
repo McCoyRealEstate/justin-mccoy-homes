@@ -1,0 +1,51 @@
+name: Buyer collections regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+jobs:
+  browser:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify collection selection and shared links
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium, webkit, devices } from 'playwright';
+          import assert from 'node:assert/strict';
+          const base='https://jus3d.com';
+          const feed=await (await fetch(base+'/data/verified-homepage.json')).json();
+          const ids=feed.D.h.slice(0,3).map(h=>String(h.lot).toLowerCase());
+          for(const [engine,options] of [[chromium,{viewport:{width:1280,height:800}}],[webkit,devices['iPhone 13']]]){
+            const browser=await engine.launch();
+            try{
+              const page=await browser.newPage(options);
+              const url=new URL('/collections/',base);
+              ids.forEach(id=>url.searchParams.append('home',id));
+              await page.goto(url.href);
+              await page.waitForFunction(()=>document.querySelectorAll('#cards .home').length===3);
+              assert.equal(await page.locator('#editor').isVisible(),false);
+              assert.equal(await page.locator('#share svg').count(),1);
+              const sizes=await page.locator('.collection-actions').evaluate(e=>[...e.children].filter(n=>!n.hidden).map(n=>({w:n.offsetWidth,h:n.offsetHeight})));
+              assert.equal(sizes.length,3);
+              assert.ok(sizes.every(s=>s.h>=44&&Math.abs(s.w-sizes[0].w)<=2));
+              assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+              await page.locator('#edit').click();
+              await page.locator('#choices input:checked').first().uncheck();
+              assert.equal(await page.locator('#cards .home').count(),2);
+              await page.locator('#clear').click();
+              assert.equal(await page.locator('#cards .home').count(),0);
+              assert.equal(await page.locator('#share').isDisabled(),true);
+              await page.evaluate(ids=>localStorage.setItem('jm-favorites-v1',JSON.stringify(ids)),ids);
+              await page.locator('#favorites').click();
+              assert.equal(await page.locator('#cards .home').count(),3);
+              console.log(engine.name(),'collections passed');
+            }finally{await browser.close()}
+          }
+          JS
