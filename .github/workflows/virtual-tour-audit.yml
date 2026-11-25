@@ -15,7 +15,7 @@ jobs:
   audit:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -45,7 +45,10 @@ jobs:
               while(next<tours.length){
                 const t=tours[next++], start=Date.now();
                 const result={...t,checked_at:new Date().toISOString()};
-                const context=await browser.newContext({viewport:{width:390,height:844}});
+                const attempts=[];
+                for(let attempt=1;attempt<=3;attempt++){
+                delete result.error;result.embedded_canvas=0;result.http=null;result.title='';
+                const context=await browser.newContext({viewport:attempt===3?{width:1280,height:900}:{width:390,height:844}});
                 try{
                   if(new URL(t.url).protocol!=='https:'||!['hd.lennar.com','my.matterport.com','tours.mammothsteps.com'].includes(new URL(t.url).hostname))throw Error('Unexpected URL');
                   const page=await context.newPage();
@@ -57,6 +60,7 @@ jobs:
                   result.frame_policy=await r?.headerValue('x-frame-options');
                   result.csp=await r?.headerValue('content-security-policy');
                   await page.waitForTimeout(5000);
+                  if(attempt===2){await page.reload({waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(8000);}
                   result.title=await page.title();
                   result.frames=page.frames().map(f=>f.url());
                   result.visible_canvas=0;
@@ -75,8 +79,15 @@ jobs:
                   result.status=result.http>=400?'http_error':'reachable_playback_unconfirmed';
                   if(result.frame_policy&&/deny|sameorigin/i.test(result.frame_policy))result.status='embedding_restricted';
                   if(/page not found|access denied|404|unavailable/i.test(result.title))result.status='suspected_error_page';
+                  if(/sign in/i.test(result.title))result.status='authentication_screen';
+                  if(result.http===403&&/just a moment/i.test(result.title))result.status='security_challenge';
+                  if(result.embedded_canvas>0&&result.status==='reachable_playback_unconfirmed')result.status='embedded_canvas_detected';
                 }catch(e){result.status='navigation_failed';result.error=String(e)}
-                finally{result.elapsed_ms=Date.now()-start;await context.close();results.push(result);console.log(JSON.stringify(result))}
+                finally{await context.close();attempts.push({attempt,status:result.status,http:result.http,title:result.title,embedded_canvas:result.embedded_canvas||0});}
+                if(result.status==='embedded_canvas_detected')break;
+                if(attempt<3)await new Promise(r=>setTimeout(r,2000));
+                }
+                result.attempts=attempts;result.elapsed_ms=Date.now()-start;results.push(result);console.log(JSON.stringify(result));
               }
             }));
             await browser.close();
