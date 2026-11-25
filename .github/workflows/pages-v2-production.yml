@@ -185,7 +185,33 @@ jobs:
               new=re.sub(r'\bMccartney\b','McCartney',old)
               if old!=new:p.write_text(new)
           PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from collections import Counter
+          root=Path('/tmp/site')
+          f=json.loads((root/'data/verified-homepage.json').read_text())
+          homes=f['D']['h']
+          counts=Counter(str(h.get('lot','')).strip().lower() for h in homes)
+          errors=[]
+          for lot,n in counts.items():
+              if not lot or n>1: errors.append({'lot':lot,'issue':'missing or duplicate homesite identity','count':n})
+          for h in homes:
+              for field in ('cm','pl','sq','bd','ba'):
+                  if h.get(field) is None or h.get(field)=='': errors.append({'lot':h.get('lot'),'issue':'missing '+field})
+          report={'homes':len(homes),'issues':errors,'status':'review_required' if errors else 'structural_checks_passed'}
+          print('INVENTORY INTEGRITY',json.dumps(report))
+          Path('/tmp/inventory-integrity.json').write_text(json.dumps(report,indent=2))
+          assert not any(e['issue']=='missing or duplicate homesite identity' for e in errors), 'Ambiguous homesite identity; publication blocked'
+          PY
           rm -rf /tmp/site/.github
+      - name: Retain inventory integrity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-integrity
+          path: /tmp/inventory-integrity.json
+          if-no-files-found: ignore
       - name: Save verified media cache
         if: success()
         uses: actions/cache/save@v4
