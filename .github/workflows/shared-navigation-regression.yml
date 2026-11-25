@@ -25,13 +25,15 @@ jobs:
               const browser=await engine.launch();
               try{
                 const page=await browser.newPage(options);
-                for(const path of ['/','/compare/','/collections/','/realtors/','/communities/meadow-pointe.html','/communities/knightsbridge.html']){
+                for(const path of ['/','/compare/','/collections/','/realtors/','/appointments/','/communities/meadow-pointe.html','/communities/knightsbridge.html']){
                   const response=await page.goto('https://jus3d.com'+path+'?verify='+Date.now());
                   assert(response.ok(),path+' unavailable');
                   const toggle=page.locator('.jm-menu-toggle'),menu=page.locator('#jm-site-menu');
                   await toggle.waitFor();
                   await page.locator('#jm-language').waitFor();
                   assert.equal(await page.locator('#jm-language').count(),1,path+' duplicate language control');
+                  const languageStyle=await page.locator('#jm-language').evaluate(e=>{const c=getComputedStyle(e);return [c.backgroundColor,c.color,c.borderTopColor,c.borderRadius,c.height,c.width]});
+                  assert.deepEqual(languageStyle,['rgb(16, 45, 73)','rgb(255, 255, 255)','rgb(216, 179, 114)','3px','30px','104px'],path+' inconsistent language styling');
                   const connect=page.locator('#connect-toggle'),optionsPanel=page.locator('#connect-options');
                   await connect.waitFor();
                   assert.equal(await connect.count(),1,path+' duplicate contact button');
