@@ -89,6 +89,11 @@ jobs:
           # Prevent duplicate legacy and preview pages from competing with the canonical homepage.
           (p/'inventory-source.html').write_text(re.sub(r'<head(?:\s[^>]*)?>',lambda m:m.group(0)+'<meta name="robots" content="noindex,follow">',source.decode('utf-8'),count=1,flags=re.I))
           (p/'homepage-v2-preview.html').write_text('<!doctype html><html><head><meta name="robots" content="noindex"><link rel="canonical" href="https://jus3d.com/"><meta http-equiv="refresh" content="0;url=/"></head><body><a href="/">Visit the homepage</a></body></html>')
+          # Rebuild community pages from the exact inventory snapshot being published.
+          import subprocess,sys
+          snapshot='/tmp/jus3d-community-inventory.json'
+          for script,args in [('prepare_city_inventory.py',['inventory-source.html',snapshot]),('generate_community_pages.py',[snapshot])]:
+              subprocess.run([sys.executable,script,*args],cwd=p,check=True)
           from xml.etree import ElementTree as ET
           urls=[e.text for e in ET.parse(p/'sitemap.xml').findall('.//{*}loc')]
           assert len(urls)==len(set(urls))
@@ -169,8 +174,8 @@ jobs:
           from pathlib import Path
           root=Path('/tmp/site')
           directory=json.loads((root/'data/verified-homepage.json').read_text())['D']['c']
-          assert isinstance(directory,dict), 'Unexpected community directory format'
-          missing=[slug for slug in directory if not (root/'communities'/(slug+'.html')).is_file()]
+          assert isinstance(directory,list), 'Unexpected community directory format'
+          missing=[c['id'] for c in directory if not (root/'communities'/(c['id']+'.html')).is_file()]
           print('COMMUNITY PAGE COVERAGE',len(directory),'missing',missing)
           assert not missing, 'Missing community pages: '+str(missing)
           PY
