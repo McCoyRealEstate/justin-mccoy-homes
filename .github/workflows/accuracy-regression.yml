@@ -43,7 +43,7 @@ jobs:
             }
             console.log('OWNERSHIP AND AMENITY COVERAGE '+JSON.stringify(ownership));
             assert.equal(ownership.invalid.length,0,'Ownership collection mismatch');
-            const conversion=s.match(/const assessment=valid&&num\(o.assessment\).*?; /)?.[0]||s.match(/const assessment=valid&&num\(o.assessment\).*?;/)?.[0];
+            const conversion=s.match(/const assessment=valid&&num\(o\.assessment\)[^;]*;/)?.[0];
             assert(conversion,'CDD conversion not found');
             const convert=new Function('valid','num','o',conversion+'return assessment;');
             assert.equal(convert(true,Number.isFinite,{assessment:1200,assessment_monthly:false}),100);
