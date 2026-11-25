@@ -26,6 +26,21 @@ jobs:
                 const page=await browser.newPage(options);
                 const response=await page.goto('https://jus3d.com/compare/?verify='+Date.now());
                 if(!response.ok())throw Error('Comparison page unavailable '+response.status());
+                const calculation=await page.evaluate(()=>{
+                  const source=[...document.scripts].map(s=>s.textContent).find(s=>s.includes('function payment(h)'));
+                  if(!source)throw Error('Payment calculation missing');
+                  const extract=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));
+                  const code=extract('const numeric=','for(let i=0;i<3;i++)');
+                  const fields=Object.fromEntries(Object.entries({down:5,rate:5.5,term:30,tax:1,insurance:.5}).map(([k,v])=>[k,{value:String(v),checkValidity:()=>true}]));
+                  const run=new Function('fields',code+';return {payment,fees}')(fields);
+                  const h={p:310240,s:'M',collection_url:'/example',ownership:{source:'/example',tax:1,hoa:233,hoa_monthly:true,assessment:156,assessment_monthly:false}};
+                  const full=run.payment(h),partial=run.payment({...h,ownership:{...h.ownership,assessment:null}});
+                  const wrong=run.payment({...h,collection_url:'/different'});
+                  fields.rate.value='0';const zero=run.payment(h);
+                  return {full,partial,wrong,zero,fees:run.fees(h)};
+                });
+                if(Math.round(calculation.full.total)!==2455||!calculation.full.complete||Math.round(calculation.partial.total)!==2442||calculation.partial.complete||calculation.wrong.complete||calculation.fees.cdd!==13||!Number.isFinite(calculation.zero.total))throw Error('Comparison payment regression '+JSON.stringify(calculation));
+                console.log('Comparison payment reference and unknown-fee tests passed');
                 const selects=page.locator('#selectors select');
                 await selects.nth(2).waitFor();
                 const feed=await (await page.request.get('https://jus3d.com/data/verified-homepage.json')).json();
