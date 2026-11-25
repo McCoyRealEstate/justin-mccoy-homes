@@ -257,6 +257,11 @@ jobs:
         with:
           path: /tmp/jus3d-media-cache
           key: verified-media-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Block publication of invalid shared JavaScript
+        run: |
+          node --check /tmp/site/assets/ownership-details.js
+          node --check /tmp/site/assets/community-property-detail.js
+          node --check /tmp/site/assets/compare-selection.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/site
