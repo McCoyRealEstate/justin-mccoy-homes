@@ -25,12 +25,24 @@ jobs:
               const browser=await engine.launch();
               try{
                 const page=await browser.newPage(options);
-                for(const path of ['/','/compare/','/collections/','/realtors/','/communities/meadow-pointe.html']){
+                for(const path of ['/','/compare/','/collections/','/realtors/','/communities/meadow-pointe.html','/communities/knightsbridge.html']){
                   const response=await page.goto('https://jus3d.com'+path+'?verify='+Date.now());
                   assert(response.ok(),path+' unavailable');
                   const toggle=page.locator('.jm-menu-toggle'),menu=page.locator('#jm-site-menu');
                   await toggle.waitFor();
                   assert.equal(await toggle.count(),1);
+                  if(engine.name()==='webkit'){
+                    const layout=await page.evaluate(()=>{
+                      const header=document.querySelector('header.jm-integrated-header'),brand=header.querySelector('.brand,.logo'),menu=header.querySelector('.jm-menu-toggle'),lang=header.querySelector('#jm-language');
+                      const rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height,center:r.top+r.height/2}};
+                      return {header:rect(header),brand:rect(brand),menu:rect(menu),lang:lang?rect(lang):null,width:innerWidth,legacy:[...header.querySelectorAll('nav:not(#jm-site-menu)')].filter(e=>getComputedStyle(e).display!=='none').length};
+                    });
+                    assert(layout.header.height<=100,path+' oversized mobile header '+JSON.stringify(layout));
+                    assert(Math.abs(layout.brand.center-layout.menu.center)<=12,path+' stacked menu');
+                    assert.equal(layout.legacy,0,path+' duplicate mobile navigation');
+                    assert(layout.menu.right<=layout.width,path+' clipped menu');
+                    if(layout.lang){assert(Math.abs(layout.lang.center-layout.menu.center)<=12,path+' stacked language selector');assert(layout.lang.right<=layout.menu.left+1,path+' overlapping controls');}
+                  }
                   assert(!(await menu.isVisible()));
                   await toggle.click();
                   assert(await menu.isVisible());
