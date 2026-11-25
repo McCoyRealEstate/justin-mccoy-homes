@@ -22,6 +22,15 @@ jobs:
           if [ -n "$run" ]; then
             gh run download "$run" --repo "$GITHUB_REPOSITORY" --name virtual-tour-audit --dir audit-evidence || echo 'Audit artifact unavailable'
           fi
+      - name: Retrieve previous successful inventory snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previous
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow media-command-center.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId') || run=''
+          if [ -n "$run" ]; then
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name media-command-center --dir previous || echo 'Previous snapshot unavailable'
+          fi
       - name: Collect live evidence
         run: |
           python - <<'PY'
@@ -58,6 +67,20 @@ jobs:
               report['playback_evidence']={'status':'historical_observations','matched_urls':len({r['url'] for r in rows}),'unchecked_current_urls':len(current-{r['url'] for r in rows}),'latest_observation':max((r.get('checked_at','') for r in rows),default=None),'automated':dict(Counter(r['status'] for r in rows)),'combined':dict(Counter(r.get('evidence_status',r['status']) for r in rows))}
           except Exception as e:
               report['playback_evidence']['reason']=str(e)
+          report['inventory_changes']={'status':'baseline_unavailable'}
+          if report['identity_valid'] and not errors:
+              snapshot={'generated_at':now.isoformat(),'build':report['build'],'freshness_status':report['freshness_status'],'homes':{str(h['lot']).strip().lower():{k:h.get(k) for k in ('cm','pl','p','s','sq','bd','ba','g','ownership','features')} for h in homes}}
+              previous=pathlib.Path('previous/inventory-snapshot.json')
+              if previous.exists():
+                  try:
+                      old=json.loads(previous.read_text())
+                      a,b=old['homes'],snapshot['homes']
+                      if not isinstance(a,dict) or not a: raise ValueError('Invalid baseline')
+                      changes=[{'lot':lot,'fields':{k:{'before':a[lot].get(k),'after':b[lot].get(k)} for k in b[lot] if a[lot].get(k)!=b[lot].get(k)}} for lot in sorted(a.keys() & b.keys()) if a[lot]!=b[lot]]
+                      report['inventory_changes']={'status':'compared_published_snapshots','baseline_at':old['generated_at'],'baseline_freshness':old.get('freshness_status'),'added':sorted(b.keys()-a.keys()),'removed_from_feed_not_confirmed_sold':sorted(a.keys()-b.keys()),'changed':changes}
+                  except Exception as e:
+                      report['inventory_changes']['reason']=str(e)
+              pathlib.Path('inventory-snapshot.json').write_text(json.dumps(snapshot,indent=2))
           pathlib.Path('command-center.json').write_text(json.dumps(report,indent=2))
           print(json.dumps(report,indent=2))
           import os
@@ -73,5 +96,8 @@ jobs:
         if: always()
         with:
           name: media-command-center
-          path: command-center.json
+          path: |
+            command-center.json
+            inventory-snapshot.json
+          retention-days: 90
           if-no-files-found: warn
