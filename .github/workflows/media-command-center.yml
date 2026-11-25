@@ -1,0 +1,55 @@
+name: Media Command Center
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Publish standalone Homepage V2']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  report:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Collect live evidence
+        run: |
+          python - <<'PY'
+          import json, urllib.request, datetime, pathlib
+          sources={}
+          errors={}
+          for name in ['verified-homepage','inventory-freshness','virtual-tours','photo-coverage','build-version']:
+              try:
+                  with urllib.request.urlopen('https://jus3d.com/data/'+name+'.json',timeout=25) as r:
+                      sources[name]=json.load(r)
+              except Exception as e:
+                  errors[name]=str(e)
+          feed=sources.get('verified-homepage',{}).get('D',{})
+          homes=feed.get('h')
+          ids=[str(h.get('lot') or '').strip().lower() for h in homes] if isinstance(homes,list) else None
+          tours=sources.get('virtual-tours',{}).get('tours')
+          covered={str(l).lower() for t in tours for l in t.get('homesites',[])} if isinstance(tours,list) else None
+          fresh=sources.get('inventory-freshness',{})
+          now=datetime.datetime.now(datetime.timezone.utc)
+          try:
+              age=(now-datetime.datetime.fromisoformat(fresh['verified_at'].replace('Z','+00:00'))).total_seconds()/3600
+          except Exception:
+              age=None
+          report={'generated_at':now.isoformat(),'homes':len(ids) if ids is not None else None,'communities':len({h.get('cm') for h in homes if h.get('cm')}) if ids is not None else None,'identity_valid':bool(all(ids) and len(ids)==len(set(ids))) if ids is not None else None,'inventory_age_hours':age,'freshness_status':'unknown' if age is None else 'stale' if age>3 or age<0 else fresh.get('verification_status','unknown'),'held_removals':fresh.get('held_removals'),'unique_tour_urls':len({t['url'] for t in tours}) if covered is not None else None,'missing_tour_homes':sorted(set(ids)-covered) if ids is not None and covered is not None else None,'photo_provenance':sources.get('photo-coverage'),'missing_amenity_homes':[h.get('lot') for h in homes if not (h.get('features') or {}).get('amenities')] if ids is not None else None,'build':sources.get('build-version'),'playback_evidence':'not collected in this report','source_errors':errors}
+          pathlib.Path('command-center.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          import os
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('## Jus3D Media Command Center\n\n')
+              for k in ['homes','communities','identity_valid','freshness_status','unique_tour_urls','playback_evidence']:
+                  f.write('- '+k+': '+str(report[k] if report[k] is not None else 'Unavailable')+'\n')
+              f.write('\nTour URL coverage does not establish playback. See JSON artifact for exceptions and source errors.\n')
+          assert report['identity_valid'], 'Inventory identity unavailable or invalid'
+          assert not errors, 'One or more report sources unavailable'
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: media-command-center
+          path: command-center.json
+          if-no-files-found: warn
