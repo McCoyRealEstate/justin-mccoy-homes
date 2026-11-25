@@ -1,7 +1,7 @@
 {
-  "verified_at": "2026-11-25T14:34:27.459048+00:00",
-  "source_sha256": "146dcd1b55ba69f40a5be7a53f81060e33c30043c0bf53e6d7b6ab316b5774fd",
-  "refresh_run_id": "45635424839",
+  "verified_at": "2026-11-25T16:28:19.608268+00:00",
+  "source_sha256": "69fc519d2afd756f61aa35bb82f6611997142a8fb0e167339250eeaa2efb08fe",
+  "refresh_run_id": "45654061353",
   "homes": 130,
   "communities": 26,
   "held_removals": [
