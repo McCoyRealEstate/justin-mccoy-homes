@@ -26,18 +26,22 @@ jobs:
                 const page=await browser.newPage({...devices['iPhone 13']});
                 await page.goto('https://jus3d.com/?test='+Date.now(),{waitUntil:'domcontentloaded'});
                 await page.waitForFunction(()=>typeof window.addOwnershipDetails==='function');
-                await page.evaluate(async()=>{
+                const expectedName=await page.evaluate(async()=>{
                   const data=await fetch('/data/floorplans.json').then(r=>r.json());
-                  const lot=Object.keys(data.lots).find(k=>data.models[data.lots[k].model]?.floors.some(f=>f.variants.reversed));
+                  const inventory=await fetch('/data/verified-homepage.json').then(r=>r.json());
+                  const lot=Object.keys(data.lots).find(k=>{const floors=data.models[data.lots[k].model]?.floors;return floors?.length===1&&floors[0].variants.reversed&&inventory.D.h.some(h=>String(h.lot).toLowerCase()===k&&h.pl)});
                   if(!lot)throw Error('No reversible floor plan');
                   const body=document.createElement('div');document.body.append(body);
                   await window.addOwnershipDetails(body,lot);
+                  return inventory.D.h.find(h=>String(h.lot).toLowerCase()===lot).pl;
                 });
                 const summary=page.locator('summary').filter({hasText:'View Floor Plan'}).last();
                 await summary.click();
+                await page.getByRole('heading',{name:expectedName,exact:true}).last().waitFor();
                 await page.getByRole('button',{name:'Enlarge floor plan',exact:true}).first().click();
                 const dialog=page.getByRole('dialog',{name:/floor plan viewer/});
                 await dialog.waitFor();
+                assert.equal(await dialog.locator('strong').first().textContent(),expectedName);
                 const close=dialog.getByRole('button',{name:'Close floor plan'});
                 const zoom=dialog.getByRole('slider',{name:'Floor plan zoom'});
                 const before=await close.boundingBox();
