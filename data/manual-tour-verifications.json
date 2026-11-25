@@ -17,6 +17,21 @@
       "source": "site owner manual test on Jus3D.com",
       "status": "user_verified",
       "notes": "Play button opened fullscreen; positive user experience."
+    },
+    {
+      "url": "https://hd.lennar.com/apps/home-viewer?vtid=16085",
+      "model": "L098",
+      "date": "2026-11-25",
+      "source": "site owner manual direct link test",
+      "status": "login_required"
+    },
+    {
+      "url": "https://hd.lennar.com/apps/home-viewer?vtid=10229",
+      "model": "3629",
+      "date": "2026-11-25",
+      "source": "site owner manual direct link test",
+      "status": "user_verified",
+      "notes": "Worked perfectly"
     }
   ]
 }
