@@ -2,16 +2,26 @@ name: Media Command Center
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ['Publish standalone Homepage V2']
+    workflows: ['Publish standalone Homepage V2', 'Virtual tour link and browser audit']
     types: [completed]
 permissions:
   contents: read
+  actions: read
 jobs:
   report:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Retrieve completed tour audit evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p audit-evidence
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow virtual-tour-audit.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId') || run=''
+          if [ -n "$run" ]; then
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name virtual-tour-audit --dir audit-evidence || echo 'Audit artifact unavailable'
+          fi
       - name: Collect live evidence
         run: |
           python - <<'PY'
@@ -36,12 +46,24 @@ jobs:
           except Exception:
               age=None
           report={'generated_at':now.isoformat(),'homes':len(ids) if ids is not None else None,'communities':len({h.get('cm') for h in homes if h.get('cm')}) if ids is not None else None,'identity_valid':bool(all(ids) and len(ids)==len(set(ids))) if ids is not None else None,'inventory_age_hours':age,'freshness_status':'unknown' if age is None else 'stale' if age>3 or age<0 else fresh.get('verification_status','unknown'),'held_removals':fresh.get('held_removals'),'unique_tour_urls':len({t['url'] for t in tours}) if covered is not None else None,'missing_tour_homes':sorted(set(ids)-covered) if ids is not None and covered is not None else None,'photo_provenance':sources.get('photo-coverage'),'missing_amenity_homes':[h.get('lot') for h in homes if not (h.get('features') or {}).get('amenities')] if ids is not None else None,'build':sources.get('build-version'),'playback_evidence':'not collected in this report','source_errors':errors}
+          report['communities_with_inventory']=report.pop('communities')
+          directory=feed.get('c')
+          report['directory_communities']=len(directory) if isinstance(directory,(dict,list)) else None
+          report['playback_evidence']={'status':'unavailable'}
+          try:
+              audit=json.loads(pathlib.Path('audit-evidence/virtual-tour-audit.json').read_text())
+              current={t['url'] for t in tours} if isinstance(tours,list) else set()
+              rows=[r for r in audit['results'] if r['url'] in current]
+              from collections import Counter
+              report['playback_evidence']={'status':'historical_observations','matched_urls':len({r['url'] for r in rows}),'unchecked_current_urls':len(current-{r['url'] for r in rows}),'latest_observation':max((r.get('checked_at','') for r in rows),default=None),'automated':dict(Counter(r['status'] for r in rows)),'combined':dict(Counter(r.get('evidence_status',r['status']) for r in rows))}
+          except Exception as e:
+              report['playback_evidence']['reason']=str(e)
           pathlib.Path('command-center.json').write_text(json.dumps(report,indent=2))
           print(json.dumps(report,indent=2))
           import os
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
               f.write('## Jus3D Media Command Center\n\n')
-              for k in ['homes','communities','identity_valid','freshness_status','unique_tour_urls','playback_evidence']:
+              for k in ['homes','communities_with_inventory','directory_communities','identity_valid','freshness_status','unique_tour_urls','playback_evidence']:
                   f.write('- '+k+': '+str(report[k] if report[k] is not None else 'Unavailable')+'\n')
               f.write('\nTour URL coverage does not establish playback. See JSON artifact for exceptions and source errors.\n')
           assert report['identity_valid'], 'Inventory identity unavailable or invalid'
