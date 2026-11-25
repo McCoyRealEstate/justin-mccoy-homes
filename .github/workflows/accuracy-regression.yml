@@ -31,6 +31,25 @@ jobs:
             const tourIds=new Set(t.tours.flatMap(x=>x.homesites.map(y=>String(y).toLowerCase())));
             console.log('Inventory',ids.length,'tour coverage',ids.filter(x=>tourIds.has(x)).length,'photo coverage',photos.counts);
             const s=fs.readFileSync('assets/ownership-details.js','utf8');
+            const ownership={verified:0,unknown:[],amenitiesMissing:[],invalid:[]};
+            for(const h of f.D.h){
+              const o=h.ownership;
+              const exact=o&&o.source===h.collection_url&&!!o.source;
+              const feeOK=(v,m)=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&typeof m==='boolean';
+              if(exact&&feeOK(o.hoa,o.hoa_monthly)&&feeOK(o.assessment,o.assessment_monthly))ownership.verified++;
+              else ownership.unknown.push({lot:h.lot,community:h.cm,collection:h.collection_url});
+              if(!Array.isArray(h.features?.amenities)||!h.features.amenities.length)ownership.amenitiesMissing.push({lot:h.lot,collection:h.collection_url});
+              if(o&&!exact)ownership.invalid.push(h.lot);
+            }
+            console.log('OWNERSHIP AND AMENITY COVERAGE '+JSON.stringify(ownership));
+            assert.equal(ownership.invalid.length,0,'Ownership collection mismatch');
+            const conversion=s.match(/const assessment=valid&&num\(o.assessment\).*?; /)?.[0]||s.match(/const assessment=valid&&num\(o.assessment\).*?;/)?.[0];
+            assert(conversion,'CDD conversion not found');
+            const convert=new Function('valid','num','o',conversion+'return assessment;');
+            assert.equal(convert(true,Number.isFinite,{assessment:1200,assessment_monthly:false}),100);
+            assert.equal(convert(true,Number.isFinite,{assessment:100,assessment_monthly:true}),100);
+            assert.equal(convert(true,Number.isFinite,{assessment:100}),null);
+            assert(s.includes('assessment.toFixed(2)'),'CDD input must use monthly value without dividing again');
             const formula=s.match(/const p=Number\(price.value\).*?complete=hoaInput.value!==''&&cddInput.value!=='';/)?.[0];
             assert(formula,'Calculator formula not found');
             const calc=new Function('price','down','rate','term','taxRate','insurance','hoaInput','cddInput',formula+'return {total,complete};');
