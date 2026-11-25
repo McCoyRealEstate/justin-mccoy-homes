@@ -61,6 +61,23 @@ jobs:
                 await zoom.evaluate(el=>{el.value=100;el.dispatchEvent(new Event('input',{bubbles:true}))});
                 await close.click();
                 assert.equal(await dialog.count(),0);
+                await page.route(/^https:\/\/(hd\.lennar\.com|my\.matterport\.com|tours\.mammothsteps\.com)\//,route=>route.fulfill({status:200,contentType:'text/html',body:'<html><body>Tour test fixture</body></html>'}));
+                await page.evaluate(async()=>{
+                  const data=await fetch('/data/floorplans.json').then(r=>r.json());
+                  const lot=Object.keys(data.lots).find(k=>data.lots[k].tour);
+                  if(!lot)throw Error('No tour available');
+                  const body=document.createElement('div');body.id='tour-regression-fixture';document.body.append(body);
+                  await window.addOwnershipDetails(body,lot,'mailto:test@example.com');
+                });
+                const fixture=page.locator('#tour-regression-fixture');
+                const tour=fixture.locator('details').filter({has:page.locator('summary').filter({hasText:'Explore Virtual Tour'})});
+                await tour.locator('summary').click();
+                await tour.locator('iframe[src^="https://"]').waitFor({state:'visible'});
+                await tour.getByRole('status').waitFor({state:'hidden',timeout:10000});
+                assert.equal(await tour.getByRole('button',{name:'Show Virtual Tour'}).count(),0);
+                await tour.getByRole('link',{name:/Open in New Tab/}).waitFor();
+                await tour.getByRole('link',{name:'Request Guided Tour'}).waitFor();
+                console.log('Automatic tour reveal and fallback controls passed',engine.name());
                 console.log('Mobile viewer regression passed',engine.name());
               }finally{await browser.close()}
             }
