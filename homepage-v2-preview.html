@@ -66,7 +66,7 @@ function render(){
  let a=homes.filter(h=>(!q||[h.address,h.community,h.plan,h.city].some(v=>String(v||'').toLowerCase().includes(q)))&&(!city||h.city===city)&&(!max||(Number(h.price)>0&&h.price<=max))&&(!beds||h.beds>=beds)&&(!$('availability').value||h.availability===$('availability').value));
  if(favoritesOnly)a=a.filter(h=>savedHomes.has(favoriteKey(h)));updateFavorites();
  a.sort((x,y)=>$('sort').value==='high'?(y.price||0)-(x.price||0):$('sort').value==='size'?(y.sqft||0)-(x.sqft||0):(x.price||Infinity)-(y.price||Infinity));
- $('count').textContent=a.length+' homes · '+(verified?'Inventory updated hourly':'Last available inventory · Confirm availability')+(lastUpdated?' · '+lastUpdated:'');
+ $('count').textContent=a.length+' homes · '+(verified?'Inventory verified':'Confirm current availability')+(lastUpdated?' · '+lastUpdated:'');
  $('results').innerHTML=a.slice(0,visibleLimit).map(h=>'<article class="home"><div class="visual">'+(h.photo?'<img loading="lazy" alt="'+esc(h.plan||'Home')+' exterior" src="'+esc(h.photo)+'" >':'<small>Central Florida · New Construction</small><strong>'+esc(h.plan||'New Home')+'</strong>')+'<button class="save-home" type="button" data-save="'+homes.indexOf(h)+'" aria-label="'+(savedHomes.has(favoriteKey(h))?'Remove from favorites':'Save to favorites')+'" aria-pressed="'+savedHomes.has(favoriteKey(h))+'">'+(savedHomes.has(favoriteKey(h))?'♥':'♡')+'</button></div><div class="home-body"><div class="home-meta"><span class="status">'+esc(h.availability||'Check availability')+'</span><span class="price">'+money(h.price)+'</span></div><h3>'+esc(h.plan||h.address)+'</h3><p class="listing-address">'+esc(h.address)+'</p><p class="loc">'+esc(h.community)+' · '+esc(h.city)+', FL</p><div class="specs"><span>'+esc(h.beds)+' Beds</span><span>'+esc(h.baths)+' Baths</span><span>'+Number(h.sqft||0).toLocaleString()+' Sq Ft</span></div><button type="button" data-id="'+homes.indexOf(h)+'">Property Details →</button></div></article>').join('')||(favoritesOnly?'<p>No saved homes currently match the available inventory.</p>':'<p>No matching properties.</p>');
  $('more-homes').style.display=a.length>visibleLimit?'inline-block':'none';
  $('more-homes').textContent='Show More Homes ('+Math.min(listingBatch(),a.length-visibleLimit)+' more)';
@@ -74,7 +74,7 @@ function render(){
 function draw(){
  const q=$('community-query').value.toLowerCase().trim(),city=$('community-city').value;
  const matching=groups.filter(g=>(!q||(g.name+' '+g.city).toLowerCase().includes(q))&&(!city||g.city===city));
- $('community-count').textContent=matching.length+' communities · '+(verified?'Inventory updated hourly':'Last available inventory');
+ $('community-count').textContent=matching.length+' communities · '+(verified?'Inventory verified':'Confirm current availability');
  $('community-results').innerHTML=matching.map(g=>{const path=g.id||slug(g.name),hasPage=!!g.id||known.has(path),url=hasPage?'/communities/'+path+'.html':'#homes';return '<article class="community-item"><div class="community-art '+(g.photo?'photo':'')+'">'+(g.photo?'<img loading="lazy" src="'+esc(g.photo)+'" alt="'+esc(g.name)+' community">':esc(g.city)+', Florida')+'</div><div class="community-info"><h3>'+esc(g.name)+'</h3><p>'+(g.count?g.count+(g.count===1?' home available':' homes available')+(g.min?' · From '+money(g.min):''):'Contact for availability')+'</p><a href="'+url+'" data-community="'+esc(g.name)+'" data-city="'+esc(g.city)+'">'+(hasPage?'Explore Community':'View Available Homes')+'</a></div></article>'}).join('')||'<p>No matching communities.</p>';
 }
 async function load(){
@@ -91,7 +91,16 @@ async function load(){
   const data=D.h.map(h=>{const c=cm.get(h.cm)||{},plan=String(h.pl||'').trim(),lot=String(h.lot||'');const photo=[HIMG[lot],HIMG[lot.toLowerCase()],HIMG[lot.toUpperCase()],(PLANPH||{})[h.cm+'|'+plan.toLowerCase()],IMG[h.cm]].map(i=>imageFrom(i,PH)).find(Boolean)||null;
    return {lot,communityId:h.cm,address:h.a||'',community:c.n||c.name||c.community||h.cm,city:cityOf(c),plan,price:(h.s==='S'||h.s==='C'||h.np===1)?null:(h.p||null),beds:h.bd||0,baths:h.ba||0,sqft:h.sq||0,availability:h.s==='M'?'Move-in ready':h.s==='U'?'Under construction':'Coming soon',photo,communityPhoto:imageFrom(IMG[h.cm],PH),hoa:h.hoa??null,tax:h.tax??null,officialUrl:LU?.[lot]||null};
   });
-  populate(data,{verified:true,updated:'',directory});
+  let freshness=null;
+  try{const response=await fetch('/data/inventory-freshness.json?check='+Date.now(),{cache:'no-store'});if(response.ok)freshness=await response.json()}catch(e){}
+  const checked=Date.parse(freshness?.verified_at||'');
+  const age=Date.now()-checked;
+  const recent=Number.isFinite(checked)&&age>=0&&age<=3*60*60*1000;
+  const complete=recent&&freshness?.verification_status==='complete';
+  const stamp=Number.isFinite(checked)?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(checked)):'';
+  const held=new Set((freshness?.held_removals||[]).map(h=>String(h.lot).toLowerCase()));
+  for(const h of data){if(held.has(h.lot.toLowerCase()))h.availability='Confirm availability'}
+  populate(data,{verified:complete,updated:stamp?'Last checked '+stamp:'Verification time unavailable',directory});
  }catch(err){
   console.warn('Verified Phase 8 data unavailable',err);
   try{const r=await fetch('/data/inventory.json?backup='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Backup unavailable');const d=await r.json();populate((d.listings||[]).map(h=>({...h,communityPhoto:null,photo:null})),{verified:false,updated:d.checked_at_utc||''});}catch(e){$('count').textContent='Inventory temporarily unavailable';$('community-count').textContent='Community inventory temporarily unavailable';}
