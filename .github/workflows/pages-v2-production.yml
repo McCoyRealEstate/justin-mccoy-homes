@@ -223,6 +223,12 @@ jobs:
           import hashlib,re
           from pathlib import Path
           root=Path('/tmp/site')
+          for p in root.rglob('*.html'):
+              old=p.read_text()
+              if '</head>' not in old: continue
+              css='<style id="rounded-listing-cards">.home,.home-card{border-radius:14px!important;overflow:hidden!important}.home>.visual,.home-card>img,.home-card>picture{border-radius:13px 13px 0 0!important}</style>'
+              if 'id="rounded-listing-cards"' not in old:
+                  p.write_text(old.replace('</head>',css+'</head>',1))
           for name in ('ownership-details.js','community-property-detail.js'):
               asset=root/'assets'/name
               version=hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
