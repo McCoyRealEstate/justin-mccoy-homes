@@ -86,6 +86,21 @@ jobs:
                 await page.locator('#selectors select').nth(2).waitFor();
                 if(await page.locator('#selectors select').nth(0).inputValue()!==ids[1])throw Error('Tray comparison selection mismatch');
                 console.log('Persistent comparison tray passed',engine.name());
+                await page.evaluate(ids=>{localStorage.setItem('jm-favorites-v1',JSON.stringify(ids));window.homeComparison.write([])},ids);
+                await page.goto('https://jus3d.com/?verify='+Date.now());
+                await page.getByRole('button',{name:/My Favorites \(3\)/}).click();
+                await page.getByRole('link',{name:'Compare Favorites'}).click();
+                const favorites=page.locator('.favorite-picker');
+                await favorites.getByRole('checkbox').nth(2).waitFor();
+                for(let i=0;i<3;i++)await favorites.getByRole('checkbox').nth(i).check();
+                if(await page.locator('thead th').count()!==4)throw Error('Favorites did not populate comparison');
+                await favorites.getByRole('checkbox').first().uncheck();
+                if(await page.locator('thead th').count()!==3)throw Error('Favorite comparison removal failed');
+                if(await page.evaluate(()=>JSON.parse(localStorage.getItem('jm-favorites-v1')).length)!==3)throw Error('Comparison removed saved favorites');
+                await page.getByRole('button',{name:'Clear Comparison',exact:true}).click();
+                if(await favorites.getByRole('checkbox',{checked:true}).count())throw Error('Favorites selection not cleared');
+                console.log('Favorites integration passed',engine.name());
+
                 console.log(engine.name()+' comparison passed');
               }finally{await browser.close()}
             }
