@@ -28,6 +28,12 @@ jobs:
             const catalog=await response.json();
             const tours=[...new Map(catalog.tours.map(t=>[t.url,t])).values()];
             if(!tours.length)throw Error('Empty catalog');
+            const inventory=await fetch('https://jus3d.com/data/verified-homepage.json',{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error('Inventory HTTP '+r.status);return r.json()});
+            const covered=new Set(tours.flatMap(t=>t.homesites.map(x=>String(x).toLowerCase())));
+            const missing=inventory.D.h.filter(h=>!covered.has(String(h.lot).toLowerCase()));
+            console.log('MISSING TOUR HOMES',JSON.stringify(missing));
+            console.log('MISSING TOUR FIELD NAMES',JSON.stringify(Object.keys(inventory.D.h[0]||{})));
+            fs.writeFileSync('missing-tour-homes.json',JSON.stringify(missing,null,2));
             const browser=await chromium.launch({headless:true});
             const results=[];
             let next=0;
@@ -69,4 +75,6 @@ jobs:
         if: always()
         with:
           name: virtual-tour-audit
-          path: virtual-tour-audit.json
+          path: |
+            virtual-tour-audit.json
+            missing-tour-homes.json
