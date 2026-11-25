@@ -44,14 +44,32 @@ jobs:
                 const selects=page.locator('#selectors select');
                 await selects.nth(2).waitFor();
                 const feed=await (await page.request.get('https://jus3d.com/data/verified-homepage.json')).json();
-                const ids=feed.D.h.slice(0,3).map(h=>String(h.lot).trim().toLowerCase());
+                const homes=feed.D.h.filter(h=>typeof h.p==='number'&&h.p>=10000&&h.p<=3000000&&h.np!==1&&h.np!==true&&!['S','C'].includes(h.s)).slice(0,3);
+                if(homes.length!==3)throw Error('Insufficient priced homes');
+                const ids=homes.map(h=>String(h.lot).trim().toLowerCase());
                 for(let i=0;i<3;i++)await selects.nth(i).selectOption(ids[i]);
                 if(await page.locator('thead th').count()!==4)throw Error('Expected three compared homes');
                 const prices=await page.locator('tbody tr').filter({has:page.getByRole('rowheader',{name:'Price',exact:true})}).locator('td').allTextContents();
-                for(let i=0;i<3;i++){const p=feed.D.h[i].p;if(typeof p==='number'&&p>0&&prices[i]!==p.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}))throw Error('Price mismatch')}
+                for(let i=0;i<3;i++){const p=homes[i].p;if(typeof p==='number'&&p>0&&prices[i]!==p.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}))throw Error('Price mismatch')}
                 if(!await selects.nth(1).locator('option').filter({hasText: /./}).evaluateAll((opts,id)=>opts.some(o=>o.value===id&&o.disabled),ids[0]))throw Error('Duplicate selection allowed');
                 if(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2))throw Error('Page horizontal overflow');
-                await page.getByRole('button',{name:'Clear comparison'}).click();
+                await page.reload();
+                await selects.nth(2).waitFor();
+                for(let i=0;i<3;i++)if(await selects.nth(i).inputValue()!==ids[i])throw Error('Saved selection lost');
+                await page.goto('https://jus3d.com/compare/?home='+encodeURIComponent(ids[1])+'&home='+encodeURIComponent(ids[0]));
+                await selects.nth(2).waitFor();
+                if(await selects.nth(0).inputValue()!==ids[1]||await selects.nth(1).inputValue()!==ids[0]||await selects.nth(2).inputValue()!=='')throw Error('Shared link restoration failed');
+                await page.locator('#finance summary').click();
+                const rate=page.locator('#finance-fields label').filter({hasText:/Interest Rate/}).locator('input');
+                const paymentRow=page.locator('tbody tr').filter({has:page.getByRole('rowheader',{name:'Monthly payment estimate',exact:true})});
+                const before=await paymentRow.locator('td').allTextContents();
+                await rate.fill('4.99');
+                const after=await paymentRow.locator('td').allTextContents();
+                if(after.some(x=>!x.includes('/mo'))||JSON.stringify(before)===JSON.stringify(after))throw Error('Decimal rate failed '+JSON.stringify(after));
+                await page.getByRole('button',{name:'Clear comparison',exact:true}).click();
+                await page.reload();
+                await selects.nth(2).waitFor();
+                if(await selects.nth(0).inputValue()!=='')throw Error('Cleared selection returned');
                 if(await page.locator('#results table').count())throw Error('Clear failed');
                 console.log(engine.name()+' comparison passed');
               }finally{await browser.close()}
