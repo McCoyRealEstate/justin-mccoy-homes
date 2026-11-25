@@ -58,6 +58,32 @@ jobs:
             await page.locator('#results button[data-id]').first().click();
             if(!await page.locator('#detail').isVisible())throw Error('Listing dialog failed');
             await page.locator('#close').click();
+            const media=await page.request.get('https://jus3d.com/data/floorplans.json?verify='+Date.now());
+            if(media.ok()){
+              const lib=await media.json();
+              const lots=Object.keys(lib.lots);
+              if(!lots.length)throw Error('Empty verified media library');
+              console.log('Media coverage: '+lots.length+'/'+inventory.D.h.length+' homes; '+Object.keys(lib.models).length+' configurations; '+Object.values(lib.lots).filter(x=>x.tour).length+' tours');
+              const lot=lots.find(k=>lib.lots[k].tour)||lots[0];
+              await page.goto('https://jus3d.com/?home='+encodeURIComponent(lot)+'&verify='+Date.now());
+              await page.locator('#detail').waitFor({state:'visible',timeout:30000});
+              const floor=page.locator('#detail summary').filter({hasText:'View Floor Plan'});
+              await floor.click({timeout:30000});
+              const drawing=floor.locator('..').locator('img').first();
+              await drawing.scrollIntoViewIfNeeded();
+              await page.waitForFunction(()=>Array.from(document.querySelectorAll('#detail details[open] img')).some(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
+              await drawing.click();
+              await page.getByRole('button',{name:'Close floor plan'}).click();
+              if(lib.lots[lot].tour){
+                const tour=page.locator('#detail summary').filter({hasText:'Explore Virtual Tour'});
+                await tour.click();
+                const frame=tour.locator('..').locator('iframe');
+                await frame.waitFor({state:'visible'});
+                if(await frame.getAttribute('src')!==lib.lots[lot].tour)throw Error('Tour URL mismatch');
+                console.log('Tour iframe URL verified; provider rendering requires separate visual confirmation');
+              }
+              await page.locator('#close').click();
+            }else console.log('Media library not deployed yet');
             if(errors.length)throw Error(errors.join('; '));
             console.log(viewport.width+'px: '+counts+'; '+await page.locator('#count').innerText());
             await page.close();
