@@ -286,7 +286,6 @@ jobs:
               if not page.is_file(): continue
               s=page.read_text()
               soup=BeautifulSoup(s,'html.parser')
-              if not soup.select_one('.hero') and not soup.select_one('main'): continue
               assert '</head>' in s.lower(), str(page)
               import re
               s=re.sub(r'</head>',lambda m:'<link rel="stylesheet" href="/assets/page-spacing.css?v='+version+'">'+m.group(0),s,count=1,flags=re.I)
