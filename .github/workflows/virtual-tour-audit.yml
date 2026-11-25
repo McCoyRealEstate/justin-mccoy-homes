@@ -4,12 +4,16 @@ on:
   push:
     paths:
       - '.github/workflows/virtual-tour-audit.yml'
+  workflow_run:
+    workflows: ['Publish standalone Homepage V2']
+    types: [completed]
   schedule:
     - cron: '30 10 * * *'
 permissions:
   contents: read
 jobs:
   audit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -55,7 +59,18 @@ jobs:
                   await page.waitForTimeout(5000);
                   result.title=await page.title();
                   result.frames=page.frames().map(f=>f.url());
-                  result.visible_canvas=await page.locator('canvas:visible').count();
+                  result.visible_canvas=0;
+                  for(const f of page.frames())result.visible_canvas+=await f.locator('canvas:visible').count().catch(()=>0);
+                  const embed=await context.newPage();
+                  await embed.route('https://jus3d.com/__tour_audit__',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));
+                  await embed.goto('https://jus3d.com/__tour_audit__');
+                  await embed.evaluate(url=>{const f=document.createElement('iframe');f.src=url;f.style.cssText='width:100%;height:700px';document.body.append(f)},t.url);
+                  await embed.waitForTimeout(8000);
+                  result.embedded_frames=embed.frames().slice(1).map(f=>f.url());
+                  result.embedded_canvas=0;
+                  for(const f of embed.frames().slice(1))result.embedded_canvas+=await f.locator('canvas:visible').count().catch(()=>0);
+                  result.embed_evidence=result.embedded_canvas>0?'visible_canvas':result.embedded_frames.some(u=>u.startsWith('https:'))?'frame_navigated':'unconfirmed';
+                  await embed.close();
                   result.errors=errors;
                   result.status=result.http>=400?'http_error':'reachable_playback_unconfirmed';
                   if(result.frame_policy&&/deny|sameorigin/i.test(result.frame_policy))result.status='embedding_restricted';
