@@ -1,5 +1,5 @@
 """Read-only media enrichment; never changes source inventory."""
-import json,sys,hashlib,concurrent.futures,time
+import json,sys,hashlib,concurrent.futures,time,os
 from pathlib import Path
 from urllib.parse import urlparse,urljoin
 import requests
@@ -46,12 +46,38 @@ def extract(h):
   model={'code':plan['number'],'garage':garage,'sqft':h['sq'],'beds':h['bd'],'baths':h['ba'],'floors':floors}
   return lot,model,tour,None
  except Exception as e:return lot,None,None,str(e)[:140]
-library={};lots={};errors={}
+# Cache only exact homesite identities; never infer media from a plan name.
+cache_path=Path(os.environ.get('MEDIA_CACHE_PATH',str(root/'data'/'media-cache.json')))
+try: cache=json.loads(cache_path.read_text())
+except (OSError,ValueError): cache={}
+if not isinstance(cache,dict):cache={}
+now=time.time()
+def identity(h):
+ lot=str(h['lot']).lower()
+ return json.dumps([lot,feed['LU'].get(lot),h.get('collection_url'),h.get('sq'),h.get('bd'),h.get('ba'),h.get('plan'),h.get('garages'),h.get('features')],sort_keys=True)
+identities={str(h['lot']).lower():identity(h) for h in feed['D']['h']}
+def cached_extract(h):
+ lot=str(h['lot']).lower()
+ old=cache.get(identities[lot],{})
+ age=now-old.get('verified_at',0)
+ if old.get('model') and old.get('tour') and 0<=age<86400:
+  return lot,old['model'],old['tour'],None,'cache'
+ lot,model,tour,error=extract(h)
+ # Only transient upstream failures may reuse recently verified media.
+ if error and old.get('model') and 0<=age<604800 and any(x in error.lower() for x in ('429','502','503','504','timeout','timed out','connection')):
+  return lot,old['model'],old.get('tour'),None,'fallback'
+ return lot,model,tour,error,'fresh'
+library={};lots={};errors={};next_cache={};counts={'cache':0,'fallback':0,'fresh':0}
 with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
- for lot,model,tour,error in pool.map(extract,feed['D']['h']):
+ for lot,model,tour,error,origin in pool.map(cached_extract,feed['D']['h']):
   if error:errors[lot]=error;continue
+  counts[origin]+=1
+  ident=identities[lot]
+  next_cache[ident]={'model':model,'tour':tour,'verified_at':now} if origin=='fresh' else cache[ident]
   key=hashlib.sha256(json.dumps(model,sort_keys=True).encode()).hexdigest()
   library[key]=model;lots[lot]={'model':key,'tour':tour}
+cache_path.parent.mkdir(parents=True,exist_ok=True)
+cache_path.write_text(json.dumps(next_cache,separators=(',',':')))
 out={'models':library,'lots':lots}
 (root/'data/floorplans.json').write_text(json.dumps(out,separators=(',',':')))
-print(json.dumps({'verified':len(lots),'unique_configurations':len(library),'unverified':errors}))
+print(json.dumps({'verified':len(lots),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
