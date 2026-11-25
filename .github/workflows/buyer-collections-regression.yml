@@ -37,7 +37,8 @@ jobs:
               assert.ok(sizes.every(s=>s.h>=44&&Math.abs(s.w-sizes[0].w)<=2));
               assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
               await page.locator('#edit').click();
-              await page.locator('#choices input:checked').first().uncheck();
+              await page.locator('#choices input:checked').first().click();
+              await page.waitForFunction(()=>document.querySelectorAll('#cards .home').length===2);
               assert.equal(await page.locator('#cards .home').count(),2);
               await page.locator('#clear').click();
               assert.equal(await page.locator('#cards .home').count(),0);
