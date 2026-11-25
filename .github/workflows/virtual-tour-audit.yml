@@ -43,8 +43,22 @@ jobs:
             const results=[];
             const manual=JSON.parse(fs.readFileSync('data/manual-tour-verifications.json','utf8')).verifications;
             const latestManual=new Map(manual.map(v=>[v.url,v]));
-            const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(String).includes(String(h.lot))).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,official_listing:inventory.LU[String(h.lot).toLowerCase()]}))}));
+            const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(String).includes(String(h.lot))).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,status:h.s,official_listing:inventory.LU?.[String(h.lot).toLowerCase()]}))}));
             console.log('MANUALLY CONFIRMED LOGIN REQUIRED',JSON.stringify(blocked));
+            const inactiveManual=[...latestManual.values()].filter(v=>v.status==='login_required'&&!tours.some(t=>t.url===v.url));
+            console.log('RESTRICTED LINKS NO LONGER IN ACTIVE CATALOG',JSON.stringify(inactiveManual));
+            for(const t of blocked)for(const h of t.homes){
+              if(!h.official_listing)continue;
+              try{
+                const u=new URL(h.official_listing,'https://www.lennar.com');
+                if(u.hostname!=='www.lennar.com'&&u.hostname!=='lennar.com')continue;
+                const response=await fetch(u,{redirect:'follow',signal:AbortSignal.timeout(20000)});
+                h.listing_http=response.status;h.listing_final_url=response.url;
+                const html=await response.text();
+                h.listing_contains_homesite=html.includes(String(h.lot));
+              }catch(e){h.listing_check_error=String(e);}
+            }
+            console.log('RESTRICTED LISTING SOURCE CHECK',JSON.stringify(blocked));
             fs.writeFileSync('confirmed-login-tours.json',JSON.stringify(blocked,null,2));
             let next=0;
             await Promise.all(Array.from({length:3},async()=>{
