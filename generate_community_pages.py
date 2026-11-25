@@ -68,8 +68,7 @@ for name,city,slug in targets:
     body=body.replace('<section class="advisor">','<main class="content inventory-first">'+home_section+'</main><section class="advisor">',1)
     # Move advisor and supporting information below the inventory; keep SEO content crawlable.
     body=body.replace('href="/">View Available Homes','href="#available-homes">View Available Homes',1)
-    audience='<section class="audience"><div class="audience-inner"><h2>Buyer Services</h2><div class="audience-grid"><div class="audience-item"><h3>Local Homebuyers</h3><p>Private tours, floor plans and completion timelines.</p></div><div class="audience-item"><h3>Relocating Buyers</h3><p>Virtual tours and remote purchase consultations.</p></div><div class="audience-item"><h3>Investment-Minded Buyers</h3><p>Community restrictions, rental eligibility and estimated ownership costs.</p></div></div><p class="audience-note">Investment returns and rental eligibility are not guaranteed. Financing, ownership, and community rules vary by property and buyer.</p></div></section>'
-    body=body.replace('<main class="content">',audience+'<main class="content">',1)
+    # Community pages prioritize property-specific information; no generic buyer services block.
     body=body.replace('Let’s Find Your New Home in '+name,'Schedule a Private Tour')
     body=body.replace('<p>We build your home. You build your legacy.</p>','<p class="closing-tagline">We build your home. You build your legacy.</p>')
     body=body.replace('>Schedule a Tour</a>', '>Schedule Your Private Tour</a>')
