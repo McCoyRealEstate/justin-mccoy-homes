@@ -1,9 +1,6 @@
 name: Virtual tour link and browser audit
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/virtual-tour-audit.yml'
   workflow_run:
     workflows: ['Publish standalone Homepage V2']
     types: [completed]
@@ -11,7 +8,7 @@ on:
     - cron: '30 10 * * *'
 concurrency:
   group: virtual-tour-audit
-  cancel-in-progress: true
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
