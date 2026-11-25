@@ -1,0 +1,64 @@
+name: Floor plan viewer regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+jobs:
+  mobile:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install playwright && npx playwright install --with-deps chromium webkit
+      - name: Exercise live viewer on mobile engines
+        run: |
+          node <<'JS'
+          const {chromium,webkit,devices}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            for(const engine of [chromium,webkit]){
+              const browser=await engine.launch();
+              try{
+                const page=await browser.newPage({...devices['iPhone 13']});
+                await page.goto('https://jus3d.com/?test='+Date.now(),{waitUntil:'domcontentloaded'});
+                await page.waitForFunction(()=>typeof window.addOwnershipDetails==='function');
+                await page.evaluate(async()=>{
+                  const data=await fetch('/data/floorplans.json').then(r=>r.json());
+                  const lot=Object.keys(data.lots).find(k=>data.models[data.lots[k].model]?.floors.some(f=>f.variants.reversed));
+                  if(!lot)throw Error('No reversible floor plan');
+                  const body=document.createElement('div');document.body.append(body);
+                  await window.addOwnershipDetails(body,lot);
+                });
+                const summary=page.locator('summary').filter({hasText:'View Floor Plan'}).last();
+                await summary.click();
+                await page.getByRole('button',{name:'Enlarge floor plan',exact:true}).first().click();
+                const dialog=page.getByRole('dialog',{name:/floor plan viewer/});
+                await dialog.waitFor();
+                const close=dialog.getByRole('button',{name:'Close floor plan'});
+                const zoom=dialog.getByRole('slider',{name:'Floor plan zoom'});
+                const before=await close.boundingBox();
+                const bounds=await dialog.boundingBox();
+                assert(before.x>bounds.x+bounds.width/2,'Close must be on right');
+                await zoom.evaluate(el=>{el.value=200;el.dispatchEvent(new Event('input',{bubbles:true}))});
+                const center=await zoom.evaluate(el=>{
+                  const v=el.closest('dialog').querySelector('div[style*="overscroll-behavior"]');
+                  return {x:(v.scrollLeft+v.clientWidth/2)/v.scrollWidth,y:(v.scrollTop+v.clientHeight/2)/v.scrollHeight};
+                });
+                assert(Math.abs(center.x-.5)<.08 && Math.abs(center.y-.5)<.08,JSON.stringify(center));
+                const after=await close.boundingBox();
+                assert(Math.abs(before.x-after.x)<2&&Math.abs(before.y-after.y)<2,'Close moved during zoom');
+                const flip=dialog.getByRole('button',{name:'Reverse layout'});
+                await flip.click();
+                await dialog.getByRole('button',{name:'Original layout'}).click();
+                await zoom.evaluate(el=>{el.value=100;el.dispatchEvent(new Event('input',{bubbles:true}))});
+                await close.click();
+                assert.equal(await dialog.count(),0);
+                console.log('Mobile viewer regression passed',engine.name());
+              }finally{await browser.close()}
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
