@@ -98,7 +98,11 @@ try:
     directory, soup = audit_read(BASE.rstrip("/"))
     discovered = candidates(directory,soup)
     promo_directory,promo_soup=audit_read(INV)
-    discovered |= candidates(promo_directory,promo_soup)
+    regional_candidates=set(discovered)
+    promo_candidates=candidates(promo_directory,promo_soup)
+    discovered |= promo_candidates
+    report["community_discovery"]={"regional_count":len(regional_candidates),"promo_count":len(promo_candidates),"combined_count":len(discovered),"regional_only":sorted(regional_candidates-promo_candidates),"promo_only":sorted(promo_candidates-regional_candidates),"baseline_count":len(D["c"])}
+    print("COMMUNITY DISCOVERY "+json.dumps(report["community_discovery"],sort_keys=True))
     if len(discovered)<max(10,len(D["c"])//2):fail("Community discovery appears truncated")
     known = {cmid(c["url"]) for c in D["c"]}
     report["community_additions"]=[]
@@ -127,6 +131,10 @@ try:
     assert not eligible_removal("test",set(),{"SOLD_OUT"},["active"])
     assert not eligible_removal("test",set(),{"SOLD_OUT"},[])
     assert eligible_removal("test",set(),{"DISCONTINUED"},[])
+    assert eligible_removal("test",set(),{"CLOSED"},[])
+    assert not eligible_removal("test",set(),{"CLOSED","ACTIVE"},[])
+    assert not eligible_removal("test",set(),{"CLOSED"},["coming-soon"])
+    assert not eligible_removal("test",{"test"},{"CLOSED"},[])
     for c in list(D["c"]):
         cid=c["id"]
         if cid in discovered_ids:continue
