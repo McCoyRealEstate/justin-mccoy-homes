@@ -45,11 +45,11 @@ def extract(h):
     if urlparse(u).scheme=='https' and urlparse(u).hostname=='cdn.lennar.com' and urlparse(u).path.lower().endswith(('.svg','.png','.jpg','.webp','.jpeg')):variants[k]=u
    if 'default' not in variants:raise ValueError('missing drawing')
    floors.append({'name':f['name'],'variants':variants})
-  if len(floors)!=site.get('stories') or not floors or not plan.get('number'):
+  if sum(f['name'].strip().lower()!='detached garage' for f in floors)!=site.get('stories') or not floors or not plan.get('number'):
    print('Drawing diagnostic',lot,repr([(f['name'],f['variants'].get('default')) for f in floors]),'stories',site.get('stories'),'code',plan.get('number'))
    raise ValueError(f'floor count or model: drawings={len(floors)}, stories={site.get("stories")}, code={plan.get("number")}')
-  def valid_tour(u):return isinstance(u,str) and urlparse(u).scheme=='https' and urlparse(u).hostname=='hd.lennar.com'
-  raw_tours=[site.get('virtualTourUrl'),plan.get('virtualTourUrl')]
+  def valid_tour(u):return isinstance(u,str) and urlparse(u).scheme=='https' and urlparse(u).hostname in ('hd.lennar.com','my.matterport.com','tours.mammothsteps.com')
+  raw_tours=[u.strip() if isinstance(u,str) else u for u in (site.get('virtualTourUrl'),plan.get('virtualTourUrl'))]
   tour=next((u for u in raw_tours if valid_tour(u)),None)
   if not tour:print('Missing accepted tour',lot,repr(raw_tours)[:500])
   if not tour and h.get('cm') in ('knightsbridge','wellness-ridge'):
@@ -62,7 +62,7 @@ def extract(h):
       tour=candidate['virtualTourUrl'];break
     print('Targeted plan lookup',lot,plan_url,'tour found' if tour else 'no matching tour')
    except Exception as e:print('Targeted plan lookup failed',lot,str(e)[:140])
-  if not isinstance(tour,str) or urlparse(tour).scheme!='https' or urlparse(tour).hostname!='hd.lennar.com':tour=None
+  if not isinstance(tour,str) or urlparse(tour).scheme!='https' or urlparse(tour).hostname not in ('hd.lennar.com','my.matterport.com','tours.mammothsteps.com'):tour=None
   model={'code':plan['number'],'garage':garage,'sqft':h['sq'],'beds':h['bd'],'baths':h['ba'],'floors':floors}
   return lot,model,tour,None
  except Exception as e:return lot,None,None,str(e)[:140]
@@ -113,7 +113,7 @@ reused=0
 for lot,entry in lots.items():
  if entry.get('tour'):continue
  candidates=master.get(signature(library[entry['model']]),{})
- eligible=[u for u,v in candidates.items() if now-v['last_seen']<2592000 and urlparse(u).scheme=='https' and urlparse(u).hostname=='hd.lennar.com']
+ eligible=[u for u,v in candidates.items() if now-v['last_seen']<2592000 and urlparse(u).scheme=='https' and urlparse(u).hostname in ('hd.lennar.com','my.matterport.com','tours.mammothsteps.com')]
  if len(eligible)==1:
   entry['tour']=eligible[0]
   entry['tour_source']='exact_configuration_library'
