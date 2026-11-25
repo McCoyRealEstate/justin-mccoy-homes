@@ -19,11 +19,11 @@ jobs:
       - name: Verify public homepage on desktop and mobile
         run: |
           npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
           node --input-type=module <<'JS'
-          import {chromium} from 'playwright';
-          const browser=await chromium.launch();
-          for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+          import {chromium,webkit} from 'playwright';
+          for(const [engine,viewport] of [[chromium,{width:1440,height:900}],[chromium,{width:390,height:844}],[webkit,{width:390,height:844}]]){
+            const browser=await engine.launch();
             const page=await browser.newPage({viewport});
             const errors=[];page.on('pageerror',e=>errors.push(e.message));
             await page.goto('https://jus3d.com/?verify='+Date.now());
@@ -43,6 +43,13 @@ jobs:
             const expected=age>=0&&age<=10800000&&freshness.verification_status==='complete'?'Inventory verified':'Confirm current availability';
             await page.waitForFunction(expected=>document.querySelector('#count')?.textContent.includes(expected)&&document.querySelector('#inventory-checked')?.textContent.includes('Last checked')&&!document.querySelector('#inventory-checked')?.hidden,expected);
             console.log('Inventory freshness display verified: '+expected);
+            const sort=page.locator('#sort'),fav=page.locator('#favorites-toggle');
+            await sort.scrollIntoViewIfNeeded();
+            const a=await sort.boundingBox(),b=await fav.boundingBox();
+            if(!a||!b||a.x+a.width>b.x+1||Math.abs(a.y-b.y)>3||Math.abs(a.height-b.height)>3)throw Error('Sort/favorites overlap or misalignment');
+            await sort.selectOption('high');await sort.selectOption('price');
+            await fav.click();await fav.click();
+            console.log('Sort and favorites layout verified '+engine.name()+' '+viewport.width);
             const counts=await page.locator('#community-count').innerText();
             const links=await page.locator('#community-results a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
             if(links.length<20||links.length!==parseInt(counts)||links.some(x=>!x.startsWith('/communities/')))throw Error('Community directory mismatch: '+counts);
@@ -99,6 +106,6 @@ jobs:
             if(errors.length)throw Error(errors.join('; '));
             console.log(viewport.width+'px: '+counts+'; '+await page.locator('#count').innerText());
             await page.close();
+            await browser.close();
           }
-          await browser.close();
           JS
