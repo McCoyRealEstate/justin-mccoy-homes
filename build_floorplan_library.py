@@ -121,15 +121,26 @@ for lot,entry in lots.items():
 master_path.write_text(json.dumps(master,separators=(',',':')))
 (root/'data/master-virtual-tours.json').write_text(json.dumps({'configurations':master,'reused':reused},indent=2))
 print('Exact configuration tour reuse:',reused)
+# Explicit owner-approved model-tour exception; never reuse floor drawings.
+homes={str(h['lot']).lower():h for h in feed['D']['h']}
+def is_mccartney(h,community):
+ return h.get('cm')==community and str(h.get('pl','')).casefold()=='mccartney'
+donors={e['tour'] for lot,e in lots.items() if e.get('tour') and is_mccartney(homes[lot],'meadow-pointe')}
+if len(donors)==1:
+ for lot,h in homes.items():
+  if is_mccartney(h,'waterlin') and not lots.get(lot,{}).get('tour'):
+   lots.setdefault(lot,{'model':None}).update(tour=next(iter(donors)),tour_source='owner_approved_meadow_pointe_model_tour')
+   print('Waterlin McCartney tour override',lot)
+else:print('Waterlin override skipped: Meadow Pointe unique tours',len(donors))
 out={'models':library,'lots':lots}
 tour_index={}
 for lot,entry in lots.items():
  if entry.get('tour'):
   item=tour_index.setdefault(entry['tour'],{'url':entry['tour'],'homesites':[],'models':[]})
   item['homesites'].append(lot)
-  code=library[entry['model']]['code']
-  if code not in item['models']:item['models'].append(code)
+  code=library.get(entry['model'],{}).get('code')
+  if code and code not in item['models']:item['models'].append(code)
 (root/'data/virtual-tours.json').write_text(json.dumps({'unique_tours':len(tour_index),'tours':list(tour_index.values())},indent=2))
 print('Unique virtual tour URLs:',len(tour_index))
 (root/'data/floorplans.json').write_text(json.dumps(out,separators=(',',':')))
-print(json.dumps({'verified':len(lots),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
+print(json.dumps({'verified':sum(bool(e.get('model')) for e in lots.values()),'unique_configurations':len(library),'unverified':errors,'cache_counts':counts}))
