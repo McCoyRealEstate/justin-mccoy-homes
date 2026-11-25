@@ -32,6 +32,28 @@
       "source": "site owner manual direct link test",
       "status": "user_verified",
       "notes": "Worked perfectly"
+    },
+    {
+      "url": "https://hd.lennar.com/apps/home-viewer?vtid=16085",
+      "model": "L098",
+      "date": "2026-11-25",
+      "source": "site owner manual direct link test",
+      "status": "login_required",
+      "notes": "Repeat test also required login; private browsing not independently confirmed."
+    },
+    {
+      "url": "https://hd.lennar.com/apps/home-viewer?vtid=16211",
+      "model": "M036",
+      "date": "2026-11-25",
+      "source": "site owner manual direct link test",
+      "status": "login_required"
+    },
+    {
+      "url": "https://hd.lennar.com/apps/home-viewer?vtid=5881",
+      "model": "N112",
+      "date": "2026-11-25",
+      "source": "site owner manual direct link test",
+      "status": "login_required"
     }
   ]
 }
