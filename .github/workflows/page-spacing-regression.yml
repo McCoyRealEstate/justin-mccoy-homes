@@ -1,0 +1,44 @@
+name: Public page spacing regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+jobs:
+  spacing:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright
+      - run: npx playwright install --with-deps chromium webkit
+      - run: |
+          node --input-type=module <<'JS'
+          import {chromium,webkit,devices} from 'playwright';
+          import assert from 'node:assert/strict';
+          const base='https://jus3d.com';
+          const feed=await (await fetch(base+'/data/verified-homepage.json')).json();
+          const paths=['/','/compare/','/collections/','/communities/','/areas/',...feed.D.c.map(c=>'/communities/'+c.id+'.html')];
+          for(const [engine,options,expected] of [[chromium,{viewport:{width:1280,height:900}},36],[webkit,devices['iPhone 13'],24]]){
+            const browser=await engine.launch();
+            try{
+              const page=await browser.newPage(options);
+              for(const path of paths){
+                const response=await page.goto(base+path,{waitUntil:'domcontentloaded'});
+                assert.ok(response.ok(),path);
+                const result=await page.evaluate(()=>{
+                  const link=document.querySelector('link[href*="page-spacing.css"]');
+                  const hero=document.querySelector('.hero');
+                  const inner=hero?.querySelector(':scope > .hero-in');
+                  const style=hero?getComputedStyle(inner||hero):null;
+                  return {sheet:!!link?.sheet,top:style?parseFloat(style.paddingTop):null,bottom:style?parseFloat(style.paddingBottom):null};
+                });
+                assert.ok(result.sheet,path+' missing shared stylesheet');
+                if(result.top!==null){assert.equal(result.top,expected,path+' top');assert.equal(result.bottom,expected,path+' bottom');}
+                console.log(engine.name(),path,JSON.stringify(result));
+              }
+            }finally{await browser.close();}
+          }
+          JS
