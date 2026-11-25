@@ -9,6 +9,9 @@ on:
     types: [completed]
   schedule:
     - cron: '30 10 * * *'
+concurrency:
+  group: virtual-tour-audit
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -39,11 +42,10 @@ jobs:
             console.log('MISSING TOUR HOMES',JSON.stringify(missing));
             console.log('MISSING TOUR FIELD NAMES',JSON.stringify(Object.keys(inventory.D.h[0]||{})));
             fs.writeFileSync('missing-tour-homes.json',JSON.stringify(missing,null,2));
-            const browser=await chromium.launch({headless:true});
             const results=[];
             const manual=JSON.parse(fs.readFileSync('data/manual-tour-verifications.json','utf8')).verifications;
             const latestManual=new Map(manual.map(v=>[v.url,v]));
-            const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(String).includes(String(h.lot))).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,status:h.s,official_listing:inventory.LU?.[String(h.lot).toLowerCase()]}))}));
+            const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(x=>String(x).toLowerCase()).includes(String(h.lot).toLowerCase())).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,status:h.s,official_listing:inventory.LU?.[String(h.lot).toLowerCase()]}))}));
             console.log('MANUALLY CONFIRMED LOGIN REQUIRED',JSON.stringify(blocked));
             const inactiveManual=[...latestManual.values()].filter(v=>v.status==='login_required'&&!tours.some(t=>t.url===v.url));
             console.log('RESTRICTED LINKS NO LONGER IN ACTIVE CATALOG',JSON.stringify(inactiveManual));
@@ -60,6 +62,7 @@ jobs:
             }
             console.log('RESTRICTED LISTING SOURCE CHECK',JSON.stringify(blocked));
             fs.writeFileSync('confirmed-login-tours.json',JSON.stringify(blocked,null,2));
+            const browser=await chromium.launch({headless:true});
             let next=0;
             await Promise.all(Array.from({length:3},async()=>{
               while(next<tours.length){
