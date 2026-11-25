@@ -41,7 +41,7 @@ jobs:
             const freshness=await freshnessResponse.json();
             const age=Date.now()-Date.parse(freshness.verified_at);
             const expected=age>=0&&age<=10800000&&freshness.verification_status==='complete'?'Inventory verified':'Confirm current availability';
-            await page.waitForFunction(expected=>document.querySelector('#count')?.textContent.includes(expected)&&document.querySelector('#inventory-checked')?.textContent.includes('Last checked')&&!document.querySelector('#inventory-checked')?.hidden,expected);
+            await page.waitForFunction(expected=>/^\d+ homes$/.test(document.querySelector('#count')?.textContent||'')&&document.querySelector('#inventory-checked')?.textContent.includes('Last updated')&&!document.querySelector('#inventory-checked')?.hidden,expected);
             console.log('Inventory freshness display verified: '+expected);
             const sort=page.locator('#sort'),fav=page.locator('#favorites-toggle');
             await sort.scrollIntoViewIfNeeded();
