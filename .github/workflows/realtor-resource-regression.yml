@@ -1,0 +1,49 @@
+name: Realtor resource regression
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish standalone Homepage V2"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  resources:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install playwright && npx playwright install --with-deps chromium webkit
+      - run: |
+          node <<'JS'
+          const {chromium,webkit,devices}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            for(const [engine,options] of [[chromium,{viewport:{width:1280,height:800}}],[webkit,devices['iPhone 13']]]){
+              const browser=await engine.launch();
+              try{
+                const page=await browser.newPage(options);
+                const response=await page.goto('https://jus3d.com/realtors/?verify='+Date.now());
+                assert(response.ok(),'Realtor page unavailable');
+                assert.equal(await page.locator('h1').innerText(),'Resources for your next sale.');
+                assert.equal(await page.locator('main .card').count(),5);
+                assert(!(await page.locator('body').evaluate(e=>e.scrollWidth>innerWidth+2)),'Horizontal overflow');
+                for(const link of await page.locator('main a').all()){
+                  assert(await link.isVisible(),'Hidden resource link');
+                  const box=await link.boundingBox();assert(box.height>=44,'Touch target too small');
+                  const href=await link.getAttribute('href');
+                  assert(href,'Missing link');
+                  if(href.startsWith('/')){
+                    const target=new URL(href,page.url());
+                    const result=await page.request.get(target.href);
+                    assert(result.ok(),'Broken internal resource '+href);
+                  }
+                }
+                assert.equal(await page.getByRole('link',{name:'Request Current Details'}).getAttribute('href'),'mailto:Justin.McCoy@Lennar.com?subject=Current%20Realtor%20Incentives%20and%20Commissions');
+                console.log(engine.name()+' Realtor resource checks passed');
+              }finally{await browser.close()}
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
