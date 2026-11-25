@@ -45,15 +45,20 @@ def extract(h):
     if urlparse(u).scheme=='https' and urlparse(u).hostname=='cdn.lennar.com' and urlparse(u).path.lower().endswith(('.svg','.png','.jpg','.webp','.jpeg')):variants[k]=u
    if 'default' not in variants:raise ValueError('missing drawing')
    floors.append({'name':f['name'],'variants':variants})
-  if len(floors)!=site.get('stories') or not floors or not plan.get('number'):raise ValueError(f'floor count or model: drawings={len(floors)}, stories={site.get("stories")}, code={plan.get("number")}')
-  tour=site.get('virtualTourUrl') or plan.get('virtualTourUrl')
+  if len(floors)!=site.get('stories') or not floors or not plan.get('number'):
+   print('Drawing diagnostic',lot,repr([(f['name'],f['variants'].get('default')) for f in floors]),'stories',site.get('stories'),'code',plan.get('number'))
+   raise ValueError(f'floor count or model: drawings={len(floors)}, stories={site.get("stories")}, code={plan.get("number")}')
+  def valid_tour(u):return isinstance(u,str) and urlparse(u).scheme=='https' and urlparse(u).hostname=='hd.lennar.com'
+  raw_tours=[site.get('virtualTourUrl'),plan.get('virtualTourUrl')]
+  tour=next((u for u in raw_tours if valid_tour(u)),None)
+  if not tour:print('Missing accepted tour',lot,repr(raw_tours)[:500])
   if not tour and h.get('cm') in ('knightsbridge','wellness-ridge'):
    try:
     plan_url=urljoin(base,plan['url'])
     ps=read(plan_url)
     exact=[v for v in ps.values() if isinstance(v,dict) and v.get('number')==plan.get('number') and canon(v.get('url'))==canon(plan_url)]
     for candidate in exact:
-     if candidate.get('floorplans')==plan.get('floorplans') and candidate.get('virtualTourUrl'):
+     if candidate.get('floorplans')==plan.get('floorplans') and valid_tour(candidate.get('virtualTourUrl')):
       tour=candidate['virtualTourUrl'];break
     print('Targeted plan lookup',lot,plan_url,'tour found' if tour else 'no matching tour')
    except Exception as e:print('Targeted plan lookup failed',lot,str(e)[:140])
@@ -103,7 +108,7 @@ for lot,entry in lots.items():
  if entry.get('tour'):
   sig=signature(library[entry['model']])
   records=master.setdefault(sig,{})
-  records[entry['tour']]={'url':entry['tour'],'last_seen':now,'source_lot':lot}
+  records[entry['tour']]={'url':entry['tour'],'last_seen':next_cache[identities[lot]]['verified_at'],'source_lot':lot}
 reused=0
 for lot,entry in lots.items():
  if entry.get('tour'):continue
