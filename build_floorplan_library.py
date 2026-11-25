@@ -47,6 +47,16 @@ def extract(h):
    floors.append({'name':f['name'],'variants':variants})
   if len(floors)!=site.get('stories') or not floors or not plan.get('number'):raise ValueError(f'floor count or model: drawings={len(floors)}, stories={site.get("stories")}, code={plan.get("number")}')
   tour=site.get('virtualTourUrl') or plan.get('virtualTourUrl')
+  if not tour and h.get('cm') in ('knightsbridge','wellness-ridge'):
+   try:
+    plan_url=urljoin(base,plan['url'])
+    ps=read(plan_url)
+    exact=[v for v in ps.values() if isinstance(v,dict) and v.get('number')==plan.get('number') and canon(v.get('url'))==canon(plan_url)]
+    for candidate in exact:
+     if candidate.get('floorplans')==plan.get('floorplans') and candidate.get('virtualTourUrl'):
+      tour=candidate['virtualTourUrl'];break
+    print('Targeted plan lookup',lot,plan_url,'tour found' if tour else 'no matching tour')
+   except Exception as e:print('Targeted plan lookup failed',lot,str(e)[:140])
   if not isinstance(tour,str) or urlparse(tour).scheme!='https' or urlparse(tour).hostname!='hd.lennar.com':tour=None
   model={'code':plan['number'],'garage':garage,'sqft':h['sq'],'beds':h['bd'],'baths':h['ba'],'floors':floors}
   return lot,model,tour,None
@@ -59,7 +69,7 @@ if not isinstance(cache,dict):cache={}
 now=time.time()
 def identity(h):
  lot=str(h['lot']).lower()
- return json.dumps([lot,feed['LU'].get(lot),h.get('collection_url'),h.get('sq'),h.get('bd'),h.get('ba'),h.get('plan'),h.get('garages'),h.get('features')],sort_keys=True)
+ return json.dumps([lot,feed['LU'].get(lot),h.get('collection_url'),h.get('sq'),h.get('bd'),h.get('ba'),h.get('pl'),h.get('g'),h.get('features')],sort_keys=True)
 identities={str(h['lot']).lower():identity(h) for h in feed['D']['h']}
 def cached_extract(h):
  lot=str(h['lot']).lower()
