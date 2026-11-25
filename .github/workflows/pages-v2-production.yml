@@ -224,6 +224,9 @@ jobs:
           manifest={'commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
           (root/'data/build-version.json').write_text(json.dumps(manifest))
           PY
+          # Historical design experiments remain in Git history, not the public site.
+          rm -rf /tmp/site/preview
+          rm -f /tmp/site/redesign-preview.html
           rm -rf /tmp/site/.github
       - name: Retain inventory integrity report
         if: always()
