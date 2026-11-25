@@ -41,6 +41,7 @@ jobs:
           MEDIA_CACHE_PATH: /tmp/jus3d-media-cache/media.json
         run: |
           mkdir -p /tmp/site
+          git rev-parse HEAD > /tmp/jus3d-source-commit
           git archive HEAD | tar -x -C /tmp/site
           git fetch --depth=1 origin design/community-landing-pages
           mkdir -p /tmp/site/assets
@@ -221,7 +222,7 @@ jobs:
           from pathlib import Path
           root=Path('/tmp/site')
           files=['index.html','assets/ownership-details.js','data/verified-homepage.json']
-          manifest={'commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
+          manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
           (root/'data/build-version.json').write_text(json.dumps(manifest))
           PY
           # Historical design experiments remain in Git history, not the public site.
@@ -271,7 +272,7 @@ jobs:
                   def get(path):
                       return urllib.request.urlopen('https://jus3d.com/'+path+'?verify='+str(time.time_ns()),timeout=20).read()
                   m=json.loads(get('data/build-version.json'))
-                  assert m['run_id']==os.environ['GITHUB_RUN_ID'] and m['commit']==os.environ['GITHUB_SHA'], 'Build identity mismatch'
+                  assert m['run_id']==os.environ['GITHUB_RUN_ID'] and m['commit']==open('/tmp/jus3d-source-commit').read().strip(), 'Build identity mismatch'
                   for path,digest in m['files'].items():
                       assert hashlib.sha256(get(path)).hexdigest()==digest, 'Live file mismatch: '+path
                   print('LIVE BUILD VERIFIED',m['commit'],m['run_id'])
