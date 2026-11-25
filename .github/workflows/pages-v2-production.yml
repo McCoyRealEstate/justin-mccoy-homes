@@ -270,6 +270,7 @@ jobs:
           body .hero{padding-block:var(--jm-hero-space)!important}
           body .hero:has(>.hero-in){padding-block:0!important}
           body .hero>.hero-in{padding-block:var(--jm-hero-space)!important}
+          body .search-shell{margin-top:0!important;padding-top:16px}
           body .hero h1{margin-block:12px!important}
           body .hero p{margin-block:8px 0!important;line-height:1.5}
           body .section{padding-block:var(--jm-section-space)}
