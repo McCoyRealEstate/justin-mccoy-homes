@@ -43,7 +43,7 @@ jobs:
                 const result={...t,checked_at:new Date().toISOString()};
                 const context=await browser.newContext({viewport:{width:390,height:844}});
                 try{
-                  if(new URL(t.url).protocol!=='https:'||new URL(t.url).hostname!=='hd.lennar.com')throw Error('Unexpected URL');
+                  if(new URL(t.url).protocol!=='https:'||!['hd.lennar.com','my.matterport.com','tours.mammothsteps.com'].includes(new URL(t.url).hostname))throw Error('Unexpected URL');
                   const page=await context.newPage();
                   const errors=[];
                   page.on('pageerror',e=>errors.push(String(e).slice(0,200)));
