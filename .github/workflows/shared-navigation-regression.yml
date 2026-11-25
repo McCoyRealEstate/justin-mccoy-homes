@@ -41,6 +41,8 @@ jobs:
                   await connect.click();
                   assert(await optionsPanel.isVisible(),path+' contact menu not opening');
                   assert(await optionsPanel.locator('a[href^="tel:"]').isVisible(),path+' missing call action');
+                  assert.equal(await optionsPanel.locator('a[href^="tel:"]').count(),1,path+' duplicate call action');
+                  assert(await optionsPanel.locator('a[href="/appointments/"]').isVisible(),path+' missing appointment calendar action');
                   assert.equal(await optionsPanel.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)',path+' unwanted contact panel background');
                   await connect.click();
                   const hero=page.locator('.hero').first();
@@ -63,7 +65,7 @@ jobs:
                   await toggle.click();
                   assert(await menu.isVisible());
                   assert.equal(await toggle.getAttribute('aria-expanded'),'true');
-                  for(const href of ['/','/#homes','/#communities','/collections/','/compare/','/realtors/']){
+                  for(const href of ['/','/#homes','/#communities','/collections/','/compare/','/realtors/','/appointments/']){
                     const link=menu.locator('a[href="'+href+'"]');
                     assert(await link.isVisible(),path+' missing '+href);
                     assert((await link.boundingBox()).height>=44);
