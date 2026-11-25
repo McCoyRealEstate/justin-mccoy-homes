@@ -30,6 +30,20 @@ jobs:
                   assert(response.ok(),path+' unavailable');
                   const toggle=page.locator('.jm-menu-toggle'),menu=page.locator('#jm-site-menu');
                   await toggle.waitFor();
+                  await page.locator('#jm-language').waitFor();
+                  assert.equal(await page.locator('#jm-language').count(),1,path+' duplicate language control');
+                  const connect=page.locator('#connect-toggle'),optionsPanel=page.locator('#connect-options');
+                  await connect.waitFor();
+                  assert.equal(await connect.count(),1,path+' duplicate contact button');
+                  assert(!(await optionsPanel.isVisible()),path+' contact options open by default');
+                  await connect.click();
+                  assert(await optionsPanel.isVisible(),path+' contact menu not opening');
+                  assert(await optionsPanel.locator('a[href^="tel:"]').isVisible(),path+' missing call action');
+                  assert.equal(await optionsPanel.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)',path+' unwanted contact panel background');
+                  await connect.click();
+                  const hero=page.locator('.hero').first();
+                  if(await hero.count())assert.equal(await hero.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(8, 27, 46)',path+' inconsistent hero background');
+
                   assert.equal(await toggle.count(),1);
                   if(engine.name()==='webkit'){
                     const layout=await page.evaluate(()=>{
