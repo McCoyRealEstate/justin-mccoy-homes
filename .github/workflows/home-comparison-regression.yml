@@ -66,7 +66,7 @@ jobs:
                 await rate.fill('4.99');
                 const after=await paymentRow.locator('td').allTextContents();
                 if(after.some(x=>!x.includes('/mo'))||JSON.stringify(before)===JSON.stringify(after))throw Error('Decimal rate failed '+JSON.stringify(after));
-                await page.getByRole('button',{name:'Clear comparison',exact:true}).click();
+                await page.getByRole('button',{name:'Clear Comparison',exact:true}).click();
                 await page.reload();
                 await selects.nth(2).waitFor();
                 if(await selects.nth(0).inputValue()!=='')throw Error('Cleared selection returned');
