@@ -184,12 +184,12 @@ try:
                 name=item.get("name")
                 if isinstance(name,str) and name.strip() and name.strip() not in names:names.append(name.strip())
             collection_amenities[canon(obj.get("url"))]=names
+            report.setdefault("amenity_collection_audit",{})[canon(obj.get("url"))]={"names":names,"availability_status":"not_independently_confirmed"}
             report.setdefault("community_feature_audit",{})[canon(obj.get("url"))]={key:{"type":type(value).__name__,"sample":str(value)[:500]} for key,value in obj.items() if re.search(r"amenit|feature|gallery|tour",key,re.I)}
             gallery=[obj.get("heroImage") or {}]+[(g.get("image") or {}) for g in (obj.get("heroGalleryImages") or []) if isinstance(g,dict)]
             for im in gallery:
-                if isinstance(im,dict) and safephoto(im.get("url")) and "monument" in (str(im.get("url"))+" "+str(im.get("alt"))).lower():
+                if not monument and isinstance(im,dict) and safephoto(im.get("url")) and "monument" in (str(im.get("url"))+" "+str(im.get("alt"))).lower():
                     monument=im["url"];break
-            if monument:break
         if monument:
             try:
                 uri=image_data(monument)
