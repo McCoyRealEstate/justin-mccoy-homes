@@ -29,7 +29,16 @@ jobs:
       - uses: actions/configure-pages@v5
       - name: Install social preview renderer
         run: python -m pip install pillow requests beautifulsoup4
+      - name: Restore verified media cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/jus3d-media-cache
+          key: verified-media-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            verified-media-v1-
       - name: Assemble tested standalone site
+        env:
+          MEDIA_CACHE_PATH: /tmp/jus3d-media-cache/media.json
         run: |
           mkdir -p /tmp/site
           git archive HEAD | tar -x -C /tmp/site
@@ -142,6 +151,12 @@ jobs:
                   if old!=new:p.write_text(new)
           PY
           rm -rf /tmp/site/.github
+      - name: Save verified media cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/jus3d-media-cache
+          key: verified-media-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/site
