@@ -192,7 +192,7 @@ jobs:
           root=Path('/tmp/site')
           f=json.loads((root/'data/verified-homepage.json').read_text())
           homes=f['D']['h']
-          counts=Counter(str(h.get('lot','')).strip().lower() for h in homes)
+          counts=Counter(str(h.get('lot') or '').strip().lower() for h in homes)
           errors=[]
           for lot,n in counts.items():
               if not lot or n>1: errors.append({'lot':lot,'issue':'missing or duplicate homesite identity','count':n})
