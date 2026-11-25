@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -40,6 +41,11 @@ jobs:
             fs.writeFileSync('missing-tour-homes.json',JSON.stringify(missing,null,2));
             const browser=await chromium.launch({headless:true});
             const results=[];
+            const manual=JSON.parse(fs.readFileSync('data/manual-tour-verifications.json','utf8')).verifications;
+            const latestManual=new Map(manual.map(v=>[v.url,v]));
+            const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(String).includes(String(h.lot))).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,official_listing:inventory.LU[String(h.lot).toLowerCase()]}))}));
+            console.log('MANUALLY CONFIRMED LOGIN REQUIRED',JSON.stringify(blocked));
+            fs.writeFileSync('confirmed-login-tours.json',JSON.stringify(blocked,null,2));
             let next=0;
             await Promise.all(Array.from({length:3},async()=>{
               while(next<tours.length){
@@ -87,6 +93,7 @@ jobs:
                 if(result.status==='embedded_canvas_detected')break;
                 if(attempt<3)await new Promise(r=>setTimeout(r,2000));
                 }
+                result.manual_verification=latestManual.get(t.url)||null;
                 result.attempts=attempts;result.elapsed_ms=Date.now()-start;results.push(result);console.log(JSON.stringify(result));
               }
             }));
@@ -104,3 +111,4 @@ jobs:
           path: |
             virtual-tour-audit.json
             missing-tour-homes.json
+            confirmed-login-tours.json
