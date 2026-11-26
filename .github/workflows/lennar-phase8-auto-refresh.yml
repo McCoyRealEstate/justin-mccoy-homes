@@ -100,7 +100,9 @@ jobs:
               page=BeautifulSoup((Path('communities')/(c['id']+'.html')).read_text(),'html.parser')
               assert all(card.select_one('.listing-photo img[src]') for card in page.select('.home-card')), c['id']
               if c.get('monument_photo'):
-                  assert page.select_one('.community-monument img')['src']==c['monument_photo'], c['id']
+                  banner=page.select_one('.hero.community-photo-hero img.community-hero-image[src]')
+                  assert banner is not None, f"{c['id']}: current community photo banner missing"
+                  assert banner['src']==c['monument_photo'], f"{c['id']}: community banner source mismatch"
           PY
       - name: Upload backup and audit report
         uses: actions/upload-artifact@v6

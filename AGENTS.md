@@ -13,3 +13,10 @@ These are development requirements, not a claim that all existing components are
 
 ## Efficient delivery
 Batch related changes into one atomic commit or PR before production publication. Live deployment regressions may cancel superseded runs for the same branch; preserve independent manual checks and never cancel inventory writes or active Pages publication merely to save time. Keep inventory refresh and generated pages on the current templates. Audit legacy files against actual build, runtime, workflow and recovery dependencies before removal; do not delete the inventory source or fallback safeguards. Use targeted checks for edits and retain full scheduled coverage.
+
+## Inventory refresh recovery and next work
+- Correct hourly refresh validation for current community photo hero (implemented; verify successful scheduled/push refresh and publication).
+- Verify generated community pages inherit current templates, including banner, listing cards and property controls.
+- Validate reusable repository cleanup guard; complete dependency review before deleting legacy code.
+- Consolidate shared listing cards, then search and property details; preserve inventory identity and uncertainty safeguards.
+- Do not begin Intelligent Home Finder until these gates are verified.
