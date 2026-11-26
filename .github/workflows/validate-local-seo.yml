@@ -35,5 +35,6 @@ jobs:
           for p in files:
             s=p.read_text()
             assert '<title>' in s and 'rel="canonical"' in s
-            assert 'Jus3D.com' in s
+            assert 'Justin McCoy' in s and 'Lennar' in s, str(p)+' missing current brand'
+            assert 'https://jus3d.com/' in s, str(p)+' missing site identity'
           PY
