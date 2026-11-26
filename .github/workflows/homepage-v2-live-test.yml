@@ -94,7 +94,7 @@ jobs:
               await drawing.click();
               await page.getByRole('button',{name:'Close floor plan'}).click();
               if(lib.lots[lot].tour){
-                const tour=page.locator('#detail summary').filter({hasText:'Explore Virtual Tour'});
+                const tour=page.locator('#detail summary').filter({hasText:'Virtual Tour'});
                 await tour.click();
                 const frame=tour.locator('..').locator('iframe');
                 await frame.waitFor({state:'visible'});
