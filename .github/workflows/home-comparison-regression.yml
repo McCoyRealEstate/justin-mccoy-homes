@@ -86,9 +86,18 @@ jobs:
                 await page.locator('#selectors select').nth(2).waitFor();
                 if(await page.locator('#selectors select').nth(0).inputValue()!==ids[1])throw Error('Tray comparison selection mismatch');
                 console.log('Persistent comparison tray passed',engine.name());
-                await page.evaluate(ids=>{localStorage.setItem('jm-favorites-v1',JSON.stringify(ids));window.homeComparison.write([])},ids);
+                await page.evaluate(()=>{localStorage.removeItem('jm-favorites-v1');window.homeComparison.write([])});
                 await page.goto('https://jus3d.com/?verify='+Date.now());
-                await page.getByRole('button',{name:/My Favorites \(3\)/}).click();
+                const favoriteToggle=page.locator('#favorites-toggle');
+                await page.locator('#results [data-save]').first().waitFor();
+                await page.waitForFunction(()=>document.querySelector('#favorites-toggle')?.textContent.includes('(0)'));
+                for(let n=1;n<=3;n++){
+                  await page.locator('#results [data-save][aria-pressed="false"]').first().click();
+                  await page.waitForFunction(n=>document.querySelector('#favorites-toggle')?.textContent.includes('('+n+')'),n);
+                }
+                await page.reload();
+                await page.waitForFunction(()=>document.querySelector('#favorites-toggle')?.textContent.includes('(3)'));
+                await favoriteToggle.click();
                 await page.getByRole('link',{name:'Compare Favorites'}).click();
                 const favorites=page.locator('.favorite-picker');
                 await favorites.getByRole('checkbox').nth(2).waitFor();
@@ -99,6 +108,15 @@ jobs:
                 if(await page.evaluate(()=>JSON.parse(localStorage.getItem('jm-favorites-v1')).length)!==3)throw Error('Comparison removed saved favorites');
                 await page.getByRole('button',{name:'Clear Comparison',exact:true}).click();
                 if(await favorites.getByRole('checkbox',{checked:true}).count())throw Error('Favorites selection not cleared');
+                await page.goto('https://jus3d.com/?verify='+Date.now());
+                await page.waitForFunction(()=>document.querySelector('#favorites-toggle')?.textContent.includes('(3)'));
+                await page.locator('#favorites-toggle').click();
+                for(let n=2;n>=0;n--){
+                  await page.locator('#results [data-save][aria-pressed="true"]').first().click();
+                  await page.waitForFunction(n=>document.querySelector('#favorites-toggle')?.textContent.includes('('+n+')'),n);
+                }
+                await page.reload();
+                await page.waitForFunction(()=>document.querySelector('#favorites-toggle')?.textContent.includes('(0)'));
                 console.log('Favorites integration passed',engine.name());
 
                 console.log(engine.name()+' comparison passed');
