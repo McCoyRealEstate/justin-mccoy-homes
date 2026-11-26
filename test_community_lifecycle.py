@@ -29,7 +29,9 @@ with tempfile.TemporaryDirectory() as tmp:
     assert 'Still interested in Bridgewalk?' in removed and 'not currently listed in our active directory' in removed
     restored=render([bridge,nearby],[home(bridge,'3'),home(nearby,'2')])
     assert '<h2>Available Homes</h2>' in restored and 'Still interested in Bridgewalk?' not in restored
-    assert 'Homesite 3' in restored
+    assert 'homesite%203' in restored and 'homesite%201' not in restored
+    assert '<h3>Example</h3>' in restored
+    assert 'id="filter-query"' in restored and 'id="community-view-homes"' in restored
     for page in (active,empty,removed,restored):
         assert '<h2>Buyer Services</h2>' not in page, 'Redundant buyer services section returned'
     print('Community lifecycle fixture passed: active, empty, removed, restored')
