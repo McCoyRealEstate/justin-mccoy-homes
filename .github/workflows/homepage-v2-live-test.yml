@@ -16,10 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - run: npm install --no-save playwright
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}-chromium-webkit
+      - run: npx playwright install --with-deps chromium webkit
       - name: Verify public homepage on desktop and mobile
         run: |
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium webkit
           node --input-type=module <<'JS'
           import {chromium,webkit} from 'playwright';
           for(const [engine,viewport] of [[chromium,{width:1440,height:900}],[chromium,{width:390,height:844}],[webkit,{width:390,height:844}]]){

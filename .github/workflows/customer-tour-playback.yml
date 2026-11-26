@@ -30,7 +30,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install playwright && npx playwright install --with-deps ${{ matrix.engine }}
+      - run: npm install playwright
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}-${{ matrix.engine }}
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
       - name: Retrieve previous full playback evidence
         env:
           GH_TOKEN: ${{ github.token }}
