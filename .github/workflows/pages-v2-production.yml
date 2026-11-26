@@ -421,7 +421,7 @@ jobs:
           from pathlib import Path
           import hashlib,re
           root=Path('/tmp/site')
-          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css']
+          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css','property-details.css']
           versions={a:hashlib.sha256((root/'assets'/a).read_bytes()).hexdigest()[:12] for a in assets}
           for a in assets[1:]:
               p=root/'assets'/a
