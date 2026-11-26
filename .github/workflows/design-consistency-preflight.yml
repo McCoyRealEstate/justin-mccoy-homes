@@ -30,7 +30,14 @@ jobs:
               hero=soup.select_one('.community-title')
               assert hero and hero.h1.get_text(strip=True)==c['community'], str(p)
               assert hero.select_one('.community-location'), str(p)
-              assert not soup.select('.community-monument figcaption'), str(p)
+              if c.get('monument_photo'):
+                  banner=hero.select_one('img.community-hero-image[src]')
+                  assert banner and banner['src']==c['monument_photo'], str(p)
+              for card in soup.select('.home-card'):
+                  assert card.get('data-homesite'), str(p)
+                  assert len(card.select('.card-spec-icons svg'))==3, str(p)
+                  assert card.select_one('.property-details-cta'), str(p)
+                  assert card.select_one('.home-card-top strong'), str(p)
               assert soup.select_one('#available-homes'), str(p)
               assert soup.title and soup.select_one('link[rel=canonical]'), str(p)
           for p in ['realtors/index.html','appointments/index.html','compare/index.html','collections/index.html']:
@@ -62,6 +69,9 @@ jobs:
           generate()
           assert '/communities/qa-lifecycle-community.html' in directory()
           assert page(new['id']).select_one('.community-title h1').get_text(strip=True)==new['community']
+          if new.get('monument_photo'):
+              banner=page(new['id']).select_one('.community-photo-hero img.community-hero-image[src]')
+              assert banner and banner['src']==new['monument_photo']
           data['communities']=[c for c in data['communities'] if c['id']!=old['id']]
           data['homes']=[h for h in data['homes'] if h.get('community_id')!=old['id']]
           generate()

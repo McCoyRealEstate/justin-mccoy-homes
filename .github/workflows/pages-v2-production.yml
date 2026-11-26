@@ -7,6 +7,9 @@ on:
     branches: [main]
   push:
     branches: [main]
+    # Refresh-only edits publish through the successful refresh workflow, not twice.
+    paths-ignore:
+      - '.github/workflows/lennar-phase8-auto-refresh.yml'
 permissions:
   contents: read
   actions: read
