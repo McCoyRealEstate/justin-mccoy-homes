@@ -3,7 +3,7 @@
 body.jus-utility{background:var(--jm-utility-bg);color:var(--jm-utility-ink);font-family:var(--jm-font-body)}
 .jus-utility header{background:var(--jm-utility-header);padding:0;border-bottom:1px solid #b89a62}
 .jus-utility header .wrap{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.jus-utility .brand{font-size:clamp(20px,4vw,26px);font-weight:800;letter-spacing:-.04em;text-transform:uppercase;text-decoration:none;color:white;line-height:1.1}
+.jus-utility .brand{font-size:clamp(20px,4vw,26px);font-weight:800;letter-spacing:-.04em;text-transform:none;text-decoration:none;color:white;line-height:1.1}
 .jus-utility .brand span{color:var(--jm-gold)}
 .jus-utility .brand small{display:block;font-size:10px;letter-spacing:.14em;color:#bac8d5;margin-top:4px}
 .jus-utility .hero{background:var(--jm-utility-hero);color:white;padding:28px 0 32px}
