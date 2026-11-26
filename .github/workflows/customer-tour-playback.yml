@@ -1,6 +1,11 @@
 name: Customer virtual tour playback
 on:
   workflow_dispatch:
+    inputs:
+      tour_url:
+        description: 'Optional exact active tour URL for targeted playback'
+        required: false
+        type: string
   workflow_run:
     workflows: ['Publish standalone Homepage V2']
     types: [completed]
@@ -26,6 +31,7 @@ jobs:
       - name: Open actual property tours
         env:
           ENGINE: ${{ matrix.engine }}
+          TOUR_URL: ${{ inputs.tour_url }}
         run: |
           cat > playback.cjs <<'JS'
           const pw=require('playwright'),fs=require('fs');
@@ -36,18 +42,20 @@ jobs:
             const active=new Map(inventory.D.h.map(h=>[String(h.lot).toLowerCase(),h]));
             const groups=new Map();
             for(const t of catalog.tours){if(!groups.has(t.url))groups.set(t.url,new Set());for(const lot of t.homesites)groups.get(t.url).add(String(lot).toLowerCase())}
-            const tasks=[...groups].map(([url,lots])=>({url,lots:[...lots].filter(l=>active.has(l))})).filter(t=>t.lots.length);
+            const allTasks=[...groups].map(([url,lots])=>({url,lots:[...lots].filter(l=>active.has(l))})).filter(t=>t.lots.length);
+            const tasks=process.env.TOUR_URL?allTasks.filter(t=>t.url===process.env.TOUR_URL):allTasks;
             if(!tasks.length)throw Error('No active tours');
-            const covered=new Set(tasks.flatMap(t=>t.lots));
+            const covered=new Set(allTasks.flatMap(t=>t.lots));
             const missing=[...active.keys()].filter(l=>!covered.has(l));
             const browser=await pw[process.env.ENGINE].launch();
             const results=[];let next=0;
+            const retryResults=[];
             fs.mkdirSync('tour-evidence',{recursive:true});
             try{
-              await Promise.all(Array.from({length:4},async()=>{
-                while(next<tasks.length){
-                  const index=next++,t=tasks[index],h=active.get(t.lots[0]);
-                  const result={url:t.url,lot:h.lot,plan:h.pl,covered_lots:t.lots,engine:process.env.ENGINE};
+              const runBatch=async(batch,output,round)=>Promise.all(Array.from({length:4},async()=>{
+                while(next<batch.length){
+                  const index=next++,t=batch[index],h=active.get(t.lots[0]);
+                  const result={url:t.url,lot:h.lot,plan:h.pl,covered_lots:t.lots,engine:process.env.ENGINE,attempt:round};
                   const context=await browser.newContext(process.env.ENGINE==='webkit'?{...pw.devices['iPhone 13']}:{viewport:{width:1440,height:900}});
                   try{
                     const page=await context.newPage();
@@ -78,17 +86,22 @@ jobs:
                     result.status=evidence?'visible_canvas_detected':'playback_unconfirmed';
                     result.elapsed_ms=Date.now()-start;
                     result.errors=errors;
-                    result.screenshot='tour-evidence/'+index+'.png';
+                    result.screenshot='tour-evidence/'+round+'-'+index+'.png';
                     await panel.screenshot({path:result.screenshot,timeout:5000,animations:'disabled'}).catch(e=>{result.screenshot_error=String(e)});
                   }catch(e){result.status=result.status||'property_or_viewer_error';result.error=String(e)}
-                  finally{await context.close();results.push(result);console.log(JSON.stringify(result))}
+                  finally{await context.close();output.push(result);console.log(JSON.stringify(result))}
                 }
               }));
+              await runBatch(tasks,results,1);
+              const retry=tasks.filter(t=>results.some(r=>r.url===t.url&&r.status!=='visible_canvas_detected'));
+              next=0;
+              if(retry.length)await runBatch(retry,retryResults,2);
             }finally{await browser.close()}
-            const counts={};for(const r of results)counts[r.status]=(counts[r.status]||0)+1;
-            fs.writeFileSync('customer-tour-report.json',JSON.stringify({engine:process.env.ENGINE,unique_tours:tasks.length,covered_homes:covered.size,missing_homes:missing,counts,results},null,2));
+            const finalResults=[...new Map([...results,...retryResults].map(r=>[r.url,r])).values()];
+            const counts={};for(const r of finalResults)counts[r.status]=(counts[r.status]||0)+1;
+            fs.writeFileSync('customer-tour-report.json',JSON.stringify({engine:process.env.ENGINE,unique_tours:tasks.length,covered_homes:covered.size,missing_homes:missing,counts,results:finalResults,initial_attempts:results,retry_attempts:retryResults},null,2));
             console.log('CUSTOMER TOUR SUMMARY',JSON.stringify(counts));
-            if(results.some(r=>r.status==='wrong_tour'||r.status==='property_or_viewer_error'))throw Error('Property integration errors detected; inspect report');
+            if([...results,...retryResults].some(r=>r.status==='wrong_tour')||finalResults.some(r=>r.status==='property_or_viewer_error'))throw Error('Property integration errors detected; inspect report');
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
           node playback.cjs
