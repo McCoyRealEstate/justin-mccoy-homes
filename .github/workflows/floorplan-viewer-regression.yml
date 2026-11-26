@@ -72,7 +72,7 @@ jobs:
                 const fixture=page.locator('#tour-regression-fixture');
                 await fixture.locator('summary').filter({hasText:'HOA & CDD Fees'}).waitFor();
                 await fixture.locator('summary').filter({hasText:'Monthly Payment Calculator'}).waitFor();
-                const tour=fixture.locator('details').filter({has:page.locator('summary').filter({hasText:'Explore Virtual Tour'})});
+                const tour=fixture.locator('details').filter({has:page.locator('summary').filter({hasText:'Virtual Tour'})});
                 await tour.locator('summary').click();
                 await tour.locator('iframe[src^="https://"]').waitFor({state:'visible'});
                 await tour.getByRole('status').waitFor({state:'hidden',timeout:10000});
