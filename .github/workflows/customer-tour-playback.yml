@@ -58,6 +58,7 @@ jobs:
                     const panel=summary.locator('..'),frame=panel.locator('iframe');
                     const start=Date.now();await summary.click();
                     await frame.waitFor({state:'visible',timeout:5000});
+                    await page.waitForFunction(()=>Array.from(document.querySelectorAll('#detail iframe')).some(f=>f.getAttribute('src')),null,{timeout:5000});
                     result.actual_url=await frame.getAttribute('src');
                     if(result.actual_url!==t.url){result.status='wrong_tour';throw Error('Unexpected iframe URL')}
                     const handle=await frame.elementHandle();
