@@ -52,8 +52,8 @@ jobs:
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}-chromium-webkit
       - run: npx playwright install --with-deps chromium webkit
         if: steps.selection.outputs.run == 'true'
-      - run: |
-        if: steps.selection.outputs.run == 'true'
+      - if: steps.selection.outputs.run == 'true'
+        run: |
           node <<'JS'
           const {chromium,webkit,devices}=require('playwright');
           (async()=>{
