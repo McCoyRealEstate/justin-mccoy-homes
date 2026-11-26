@@ -71,9 +71,9 @@ jobs:
                 console.log('ZERO INVENTORY FALLBACK VERIFIED '+link);
               }else if(await cards.count()!==expectedHomes)throw Error('Community inventory count mismatch '+link+' expected '+expectedHomes+' actual '+await cards.count());
               if(await cards.count()!==await community.locator('.home-card .listing-photo img').count())throw Error('Missing listing image '+link);
-              const images=community.locator('.advisor-photo, .listing-photo img, .community-monument img');
+              const images=community.locator('.advisor-photo, .listing-photo img, .community-hero-image');
               await images.evaluateAll(imgs=>imgs.forEach(i=>i.loading='eager'));
-              await community.waitForFunction(()=>Array.from(document.querySelectorAll('.advisor-photo, .listing-photo img, .community-monument img')).every(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
+              await community.waitForFunction(()=>Array.from(document.querySelectorAll('.advisor-photo, .listing-photo img, .community-hero-image')).every(i=>i.complete&&i.naturalWidth>0),{},{timeout:30000});
             }
             await community.close();
             if(await page.locator('iframe').count())throw Error('Unexpected iframe');
@@ -98,12 +98,11 @@ jobs:
               await drawing.click();
               await page.getByRole('button',{name:'Close floor plan'}).click();
               if(lib.lots[lot].tour){
-                const tour=page.locator('#detail summary').filter({hasText:'Virtual Tour'});
-                await tour.click();
-                const frame=tour.locator('..').locator('iframe');
-                await frame.waitFor({state:'visible'});
-                await page.waitForFunction(expected=>Array.from(document.querySelectorAll('#detail iframe')).some(f=>f.getAttribute('src')===expected),lib.lots[lot].tour,{timeout:15000});
-                console.log('Tour iframe URL verified; provider rendering requires separate visual confirmation');
+                const tour=page.locator('#detail a.property-tour-launch');
+                await tour.waitFor({state:'visible'});
+                if(await tour.getAttribute('href')!==lib.lots[lot].tour||await tour.getAttribute('target')!=='_blank')throw Error('Incorrect direct tour link');
+                if(await page.locator('#detail iframe').count())throw Error('Unexpected embedded tour');
+                console.log('Direct tour URL verified; customer handoff tested separately');
               }
               await page.locator('#close').click();
             }else console.log('Media library not deployed yet');

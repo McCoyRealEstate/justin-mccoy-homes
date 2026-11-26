@@ -109,14 +109,13 @@ jobs:
                 const fixture=page.locator('#tour-regression-fixture');
                 await fixture.locator('summary').filter({hasText:'HOA & CDD Fees'}).waitFor();
                 await fixture.locator('summary').filter({hasText:'Monthly Payment Calculator'}).waitFor();
-                const tour=fixture.locator('details').filter({has:page.locator('summary').filter({hasText:'Virtual Tour'})});
-                await tour.locator('summary').click();
-                await tour.locator('iframe[src^="https://"]').waitFor({state:'visible'});
-                await tour.getByRole('status').waitFor({state:'hidden',timeout:10000});
-                assert.equal(await tour.getByRole('button',{name:'Show Virtual Tour'}).count(),0);
-                await tour.getByRole('link',{name:/Open in New Tab/}).waitFor();
-                await tour.getByRole('link',{name:'Request Guided Tour'}).waitFor();
-                console.log('Automatic tour reveal and fallback controls passed',engine.name());
+                const tour=fixture.locator('a.property-tour-launch');
+                await tour.waitFor({state:'visible'});
+                const expected=await page.evaluate(async()=>{const d=await fetch('/data/floorplans.json').then(r=>r.json());return Object.values(d.lots).find(x=>x.tour).tour});
+                assert.equal(await tour.getAttribute('href'),expected);
+                assert.equal(await tour.getAttribute('target'),'_blank');
+                assert.equal(await fixture.locator('iframe').count(),0);
+                console.log('Direct tour link and floor plan controls passed',engine.name());
                 console.log('Mobile viewer regression passed',engine.name());
               }finally{await browser.close()}
             }
