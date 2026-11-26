@@ -11,6 +11,8 @@
   --jm-utility-button: #11283f;
   --jm-border: #dedbd4;
   --jm-card-radius: 16px;
+  --jm-listing-radius: 14px;
+  --jm-listing-photo-radius: 13px;
   --jm-button-radius: 9px;
   --jm-touch-height: 48px;
   --jm-spec-size: clamp(10px,3.25vw,14px);
