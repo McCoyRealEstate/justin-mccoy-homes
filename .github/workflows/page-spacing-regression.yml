@@ -33,7 +33,7 @@ jobs:
                   const hero=document.querySelector('.hero');
                   const inner=hero?.querySelector(':scope > .hero-in');
                   const style=hero?getComputedStyle(inner||hero):null;
-                  return {sheet:!!link?.sheet,top:style?parseFloat(style.paddingTop):null,bottom:style?parseFloat(style.paddingBottom):null};
+                  return {compact:hero?.classList.contains('community-title')??false,sheet:!!link?.sheet,top:style?parseFloat(style.paddingTop):null,bottom:style?parseFloat(style.paddingBottom):null};
                 });
                 assert.ok(result.sheet,path+' missing shared stylesheet');
                 if(path==='/'){
@@ -46,7 +46,7 @@ jobs:
                   assert.ok(bounds.searchTop>=bounds.heroBottom-1,'Search overlaps hero');
                   assert.equal(bounds.actionsBottom,null,'Redundant hero navigation returned');
                 }
-                if(result.top!==null){assert.equal(result.top,expected,path+' top');assert.equal(result.bottom,expected,path+' bottom');}
+                if(result.top!==null){const target=result.compact?(expected===36?16:12):expected;assert.equal(result.top,target,path+' top');assert.equal(result.bottom,target,path+' bottom');}
                 console.log(engine.name(),path,JSON.stringify(result));
               }
             }finally{await browser.close();}

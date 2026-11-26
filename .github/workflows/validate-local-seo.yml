@@ -23,9 +23,18 @@ jobs:
           files=list(Path('areas').glob('*.html'))
           assert len(files)==9
           root=ET.parse('sitemap.xml').getroot()
-          assert len(root)==16
+          urls=[e.text for e in ET.parse('sitemap.xml').findall('.//{*}loc')]
+          assert len(urls)==len(set(urls)), 'Duplicate sitemap URLs'
+          for p in Path('areas').glob('*.html'):
+            url='https://jus3d.com/areas/'+('' if p.name=='index.html' else p.name)
+            assert url in urls, 'Missing city URL: '+url
+          for url in urls:
+            assert url.startswith('https://jus3d.com/'), url
+            rel=url.removeprefix('https://jus3d.com/')
+            assert Path(rel+'index.html' if not rel or rel.endswith('/') else rel).is_file(), url
           for p in files:
             s=p.read_text()
             assert '<title>' in s and 'rel="canonical"' in s
-            assert 'Jus3D.com' in s
+            assert 'Justin McCoy' in s and 'Lennar' in s, str(p)+' missing current brand'
+            assert 'https://jus3d.com/' in s, str(p)+' missing site identity'
           PY

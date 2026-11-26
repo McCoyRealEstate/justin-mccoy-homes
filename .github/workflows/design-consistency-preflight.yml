@@ -1,0 +1,76 @@
+name: Design consistency preflight
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install beautifulsoup4
+      - name: Generate community pages from inventory
+        run: |
+          python -m py_compile generate_community_pages.py
+          python prepare_city_inventory.py index.html /tmp/community-inventory.json
+          python generate_community_pages.py /tmp/community-inventory.json
+      - name: Validate community hierarchy and utility assets
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          data=json.loads(Path('/tmp/community-inventory.json').read_text())
+          assert data['communities']
+          for c in data['communities']:
+              p=Path('communities')/(c['id']+'.html')
+              soup=BeautifulSoup(p.read_text(),'html.parser')
+              hero=soup.select_one('.community-title')
+              assert hero and hero.h1.get_text(strip=True)==c['community'], str(p)
+              assert hero.select_one('.community-location'), str(p)
+              assert not soup.select('.community-monument figcaption'), str(p)
+              assert soup.select_one('#available-homes'), str(p)
+              assert soup.title and soup.select_one('link[rel=canonical]'), str(p)
+          for p in ['realtors/index.html','appointments/index.html','compare/index.html','collections/index.html']:
+              soup=BeautifulSoup(Path(p).read_text(),'html.parser')
+              assert soup.select_one('body.jus-utility'), p
+              assert soup.select_one('link[href="/assets/utility-design.css"]'), p
+          assert Path('assets/utility-design.css').is_file()
+          print('Verified',len(data['communities']),'community pages and four utility pages')
+          PY
+      - name: Exercise community lifecycle with isolated synthetic inventory
+        run: |
+          python - <<'PY'
+          import copy,json,subprocess
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          data=json.loads(Path('/tmp/community-inventory.json').read_text())
+          old=data['communities'][0]
+          new=copy.deepcopy(old)
+          new.update(id='qa-lifecycle-community',community='QA Lifecycle Community')
+          data['communities'].append(new)
+          fixture=Path('/tmp/lifecycle-inventory.json')
+          def generate():
+              fixture.write_text(json.dumps(data))
+              subprocess.run(['python','generate_community_pages.py',str(fixture)],check=True)
+          def page(slug):
+              return BeautifulSoup(Path('communities',slug+'.html').read_text(),'html.parser')
+          def directory():
+              return {a.get('href') for a in page('index').select('.community-directory a')}
+          generate()
+          assert '/communities/qa-lifecycle-community.html' in directory()
+          assert page(new['id']).select_one('.community-title h1').get_text(strip=True)==new['community']
+          data['communities']=[c for c in data['communities'] if c['id']!=old['id']]
+          data['homes']=[h for h in data['homes'] if h.get('community_id')!=old['id']]
+          generate()
+          assert '/communities/'+old['id']+'.html' not in directory()
+          retired=page(old['id'])
+          assert retired.select_one('.community-title h1').get_text(strip=True)=='Still interested in '+old['community']+'?'
+          alternatives=retired.select('.community-directory a')
+          assert alternatives, 'No nearby alternatives'
+          assert all(a.get('href') in directory() for a in alternatives)
+          assert retired.select_one('link[rel=canonical]')['href']=='https://jus3d.com/communities/'+old['id']+'.html'
+          print('New community creation, retirement, active directory exclusion and nearby alternatives verified')
+          PY
