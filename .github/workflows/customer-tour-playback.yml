@@ -85,39 +85,30 @@ jobs:
                     const page=await context.newPage();
                     const errors=[];page.on('pageerror',e=>errors.push(String(e).slice(0,200)));
                     await page.goto(origin+'/?home='+encodeURIComponent(h.lot),{waitUntil:'domcontentloaded',timeout:25000});
-                    const summary=page.locator('#detail summary').filter({hasText:'Virtual Tour'});
-                    await summary.waitFor({timeout:15000});
-                    const panel=summary.locator('..'),frame=panel.locator('iframe');
-                    const start=Date.now();await summary.click();
-                    await frame.waitFor({state:'visible',timeout:5000});
-                    await page.waitForFunction(()=>Array.from(document.querySelectorAll('#detail iframe')).some(f=>f.getAttribute('src')),null,{timeout:5000});
-                    result.actual_url=await frame.getAttribute('src');
-                    if(result.actual_url!==t.url){result.status='wrong_tour';throw Error('Unexpected iframe URL')}
-                    const handle=await frame.elementHandle();
-                    const outer=await handle.contentFrame();
-                    const deadline=start+15000;
-                    let evidence=false;
-                    while(Date.now()<deadline){
-                      const frames=page.frames().filter(f=>{let p=f;while(p){if(p===outer)return true;p=p.parentFrame()}return false});
-                      let canvas=0;
-                      for(const f of frames){canvas+=await f.locator('canvas:visible').count().catch(()=>0)}
-                      result.frames=frames.map(f=>f.url());
-                      const overlay=panel.locator('[role="status"]').first();
-                      const obscured=await overlay.isVisible().catch(()=>false);
-                      if(!obscured&&canvas>0){evidence=true;result.canvas_visible_ms=Date.now()-start;break}
-                      await page.waitForTimeout(250);
-                    }
-                    result.status=evidence?'visible_canvas_detected':'playback_unconfirmed';
+                    const link=page.locator('#detail a.property-tour-launch');
+                    await link.waitFor({state:'visible',timeout:15000});
+                    result.actual_url=await link.getAttribute('href');
+                    if(result.actual_url!==t.url){result.status='wrong_tour';throw Error('Unexpected tour URL')}
+                    if(await link.getAttribute('target')!=='_blank')throw Error('Tour must open in new tab');
+                    if(await page.locator('#detail iframe').count())throw Error('Unexpected embedded tour');
+                    const start=Date.now();
+                    // Intercept the external navigation to verify the customer handoff without provider delays.
+                    await context.route(t.url,route=>route.fulfill({status:200,contentType:'text/html',body:'Tour handoff verified'}));
+                    const [popup]=await Promise.all([page.waitForEvent('popup',{timeout:10000}),link.click()]);
+                    await popup.waitForURL(t.url,{timeout:10000});
+                    if(!await page.locator('#detail').isVisible())throw Error('Original property dialog lost');
+                    result.status='direct_launch_verified';
                     result.elapsed_ms=Date.now()-start;
                     result.errors=errors;
                     result.screenshot='tour-evidence/'+round+'-'+index+'.png';
-                    await panel.screenshot({path:result.screenshot,timeout:5000,animations:'disabled'}).catch(e=>{result.screenshot_error=String(e)});
+                    await link.screenshot({path:result.screenshot,timeout:5000}).catch(e=>{result.screenshot_error=String(e)});
+                    await popup.close();
                   }catch(e){result.status=result.status||'property_or_viewer_error';result.error=String(e)}
                   finally{await context.close();output.push(result);console.log(JSON.stringify(result))}
                 }
               }));
               await runBatch(tasks,results,1);
-              const retry=tasks.filter(t=>results.some(r=>r.url===t.url&&r.status!=='visible_canvas_detected'));
+              const retry=tasks.filter(t=>results.some(r=>r.url===t.url&&r.status!=='direct_launch_verified'));
               next=0;
               if(retry.length)await runBatch(retry,retryResults,2);
             }finally{await browser.close()}
