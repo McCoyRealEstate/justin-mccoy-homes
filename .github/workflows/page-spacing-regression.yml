@@ -47,6 +47,11 @@ jobs:
                   assert.equal(bounds.actionsBottom,null,'Redundant hero navigation returned');
                 }
                 if(result.top!==null){const target=result.compact?(expected===36?16:12):expected;assert.equal(result.top,target,path+' top');assert.equal(result.bottom,target,path+' bottom');}
+                if(path.startsWith('/communities/')&&path.endsWith('.html')){
+                  const cards=await page.locator('.home-card').evaluateAll(cards=>cards.map(c=>{const specs=c.querySelector('.home-specs');return {icons:specs?.querySelectorAll('svg').length,center:specs?getComputedStyle(specs).justifyContent:null,heading:c.querySelector('h3')?.textContent,cta:!!c.querySelector('.property-details-cta'),radius:parseFloat(getComputedStyle(c).borderTopLeftRadius)}}));
+                  for(const card of cards){assert.equal(card.icons,3,path+' missing spec icons');assert.equal(card.center,'center',path+' spec alignment');assert.ok(!/Homesite/i.test(card.heading||''),path+' legacy heading');assert.ok(card.cta&&card.radius>=8,path+' card styling');}
+                  console.log('Community card regression',path,cards.length);
+                }
                 console.log(engine.name(),path,JSON.stringify(result));
               }
             }finally{await browser.close();}
