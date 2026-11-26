@@ -28,5 +28,13 @@ jobs:
           assert d['verified_count']>=100
           assert len(d['listings'])>=15
           assert len(list(Path('areas').glob('*.html'))) == 9
-          assert len(ET.parse('sitemap.xml').getroot())==16
+          urls=[e.text for e in ET.parse('sitemap.xml').findall('.//{*}loc')]
+          assert len(urls)==len(set(urls)), 'Duplicate sitemap URLs'
+          for p in Path('areas').glob('*.html'):
+            url='https://jus3d.com/areas/'+('' if p.name=='index.html' else p.name)
+            assert url in urls, 'Missing city URL: '+url
+          for url in urls:
+            assert url.startswith('https://jus3d.com/'), url
+            rel=url.removeprefix('https://jus3d.com/')
+            assert Path(rel+'index.html' if not rel or rel.endswith('/') else rel).is_file(), url
           PY
