@@ -1,9 +1,11 @@
 name: Virtual tour link and browser audit
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ['Publish standalone Homepage V2']
-    types: [completed]
+    inputs:
+      tour_url:
+        description: 'Optional exact published tour URL for a targeted audit'
+        required: false
+        type: string
   schedule:
     - cron: '30 10 * * *'
 concurrency:
@@ -13,7 +15,6 @@ permissions:
   contents: read
 jobs:
   audit:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -22,7 +23,9 @@ jobs:
         with:
           node-version: '22'
       - run: npm install playwright && npx playwright install --with-deps chromium
-      - name: Audit all published links
+      - name: Audit published links
+        env:
+          TOUR_URL: ${{ inputs.tour_url }}
         run: |
           cat > audit.cjs <<'JS'
           const {chromium}=require('playwright');
@@ -31,10 +34,11 @@ jobs:
             const response=await fetch('https://jus3d.com/data/virtual-tours.json',{signal:AbortSignal.timeout(30000)});
             if(!response.ok)throw Error('Catalog HTTP '+response.status);
             const catalog=await response.json();
-            const tours=[...new Map(catalog.tours.map(t=>[t.url,t])).values()];
+            const allTours=[...new Map(catalog.tours.map(t=>[t.url,t])).values()];
+            const tours=process.env.TOUR_URL?allTours.filter(t=>t.url===process.env.TOUR_URL):allTours;
             if(!tours.length)throw Error('Empty catalog');
             const inventory=await fetch('https://jus3d.com/data/verified-homepage.json',{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error('Inventory HTTP '+r.status);return r.json()});
-            const covered=new Set(tours.flatMap(t=>t.homesites.map(x=>String(x).toLowerCase())));
+            const covered=new Set(allTours.flatMap(t=>t.homesites.map(x=>String(x).toLowerCase())));
             const missing=inventory.D.h.filter(h=>!covered.has(String(h.lot).toLowerCase()));
             console.log('MISSING TOUR HOMES',JSON.stringify(missing));
             console.log('MISSING TOUR FIELD NAMES',JSON.stringify(Object.keys(inventory.D.h[0]||{})));
@@ -44,7 +48,7 @@ jobs:
             const latestManual=new Map(manual.map(v=>[v.url,v]));
             const blocked=tours.filter(t=>latestManual.get(t.url)?.status==='login_required').map(t=>({...t,homes:inventory.D.h.filter(h=>t.homesites.map(x=>String(x).toLowerCase()).includes(String(h.lot).toLowerCase())).map(h=>({lot:h.lot,community:h.cm,plan:h.pl,sqft:h.sq,garage:h.g,beds:h.bd,baths:h.ba,status:h.s,official_listing:inventory.LU?.[String(h.lot).toLowerCase()]}))}));
             console.log('MANUALLY CONFIRMED LOGIN REQUIRED',JSON.stringify(blocked));
-            const inactiveManual=[...latestManual.values()].filter(v=>v.status==='login_required'&&!tours.some(t=>t.url===v.url));
+            const inactiveManual=[...latestManual.values()].filter(v=>v.status==='login_required'&&!allTours.some(t=>t.url===v.url));
             console.log('RESTRICTED LINKS NO LONGER IN ACTIVE CATALOG',JSON.stringify(inactiveManual));
             for(const t of blocked)for(const h of t.homes){
               if(!h.official_listing)continue;
