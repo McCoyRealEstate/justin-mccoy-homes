@@ -336,6 +336,9 @@ jobs:
           body .hero:before{display:none!important}
           body .hero h1{font:400 clamp(38px,5vw,62px)/1.06 Georgia,"Times New Roman",serif!important;letter-spacing:-.045em!important;margin:14px 0!important}
           body .hero h1 em{color:#d8b372!important;font-style:normal}
+          body .hero.community-title{padding-block:16px!important}
+          body .hero.community-title h1{margin:8px 0!important}
+          @media(max-width:620px){body .hero.community-title{padding-block:12px!important}}
           body .hero p{color:#d3e0eb!important;font-size:16px!important;line-height:1.55!important}
           body .hero .eyebrow{color:#d8b372!important;font-size:12px!important;letter-spacing:.18em!important;font-weight:800!important}
           body header.jm-integrated-header{background:#071b30!important;border-bottom:1px solid #d8b37266!important}
