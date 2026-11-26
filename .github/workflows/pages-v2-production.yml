@@ -408,14 +408,6 @@ jobs:
               page.write_text(s)
           print('SHARED PAGE SPACING',version,len(pages))
           PY
-          python - <<'PY'
-          import os,json,hashlib
-          from pathlib import Path
-          root=Path('/tmp/site')
-          files=['index.html','assets/ownership-details.js','data/verified-homepage.json']
-          manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'test_selection':json.loads(Path('/tmp/jus3d-test-selection.json').read_text()),'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
-          (root/'data/build-version.json').write_text(json.dumps(manifest))
-          PY
           # Load the shared foundation on all public HTML pages; preserve component-specific layouts.
           python - <<'PY'
           from pathlib import Path
@@ -427,6 +419,11 @@ jobs:
               p=root/'assets'/a
               p.write_text(p.read_text().replace('/assets/design-foundation.css"', '/assets/design-foundation.css?v='+versions[assets[0]]+'"'))
               versions[a]=hashlib.sha256(p.read_bytes()).hexdigest()[:12]
+          # Version the dynamically loaded property stylesheet before final checksums.
+          p=root/'assets/ownership-details.js'
+          content=p.read_text()
+          content=re.sub(r'/assets/property-details\.css(?:\?v=[^\x27"\s;]+)?', '/assets/property-details.css?v='+versions['property-details.css'],content)
+          p.write_text(content)
           for page in root.rglob('*.html'):
               if page.name=='inventory-source.html':continue
               content=page.read_text(errors='strict')
@@ -441,6 +438,14 @@ jobs:
           rm -rf /tmp/site/preview
           rm -f /tmp/site/redesign-preview.html
           rm -rf /tmp/site/.github
+          python - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          root=Path('/tmp/site')
+          files=['index.html','assets/ownership-details.js','assets/community-property-detail.js','data/verified-homepage.json','assets/design-foundation.css','assets/listing-card.css','assets/utility-design.css','assets/search-interface.css','assets/property-details.css','assets/page-spacing.css']
+          manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'test_selection':json.loads(Path('/tmp/jus3d-test-selection.json').read_text()),'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
+          (root/'data/build-version.json').write_text(json.dumps(manifest))
+          PY
       - name: Retain inventory integrity report
         if: always()
         uses: actions/upload-artifact@v4
