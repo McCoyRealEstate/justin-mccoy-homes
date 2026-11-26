@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows: ["Publish standalone Homepage V2"]
     types: [completed]
+concurrency:
+  group: floorplan-viewer-regression-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
 jobs:
   mobile:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'

@@ -6,6 +6,9 @@ on:
     types: [completed]
 permissions:
   contents: read
+concurrency:
+  group: shared-navigation-regression-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
 jobs:
   navigation:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'

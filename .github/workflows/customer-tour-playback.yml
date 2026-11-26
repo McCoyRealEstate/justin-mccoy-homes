@@ -10,8 +10,8 @@ on:
     workflows: ['Publish standalone Homepage V2']
     types: [completed]
 concurrency:
-  group: customer-tour-playback
-  cancel-in-progress: false
+  group: customer-tour-playback-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
