@@ -34,6 +34,27 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: main
+          fetch-depth: 0
+      - name: Classify changes against published build
+        run: |
+          python - <<'PY'
+          import json,subprocess,urllib.request,re,time
+          from pathlib import Path
+          result={'mode':'full','paths':[]}
+          try:
+              with urllib.request.urlopen('https://jus3d.com/data/build-version.json?classifier='+str(time.time_ns()),timeout=15) as response:
+                  prior=json.load(response)['commit']
+              assert re.fullmatch('[0-9a-f]{40}',prior)
+              subprocess.run(['git','merge-base','--is-ancestor',prior,'HEAD'],check=True)
+              paths=subprocess.check_output(['git','diff','--name-only',prior,'HEAD','--'],text=True).splitlines()
+              allowed={'realtors/index.html':'realtor','appointments/index.html':'appointment','compare/index.html':'comparison','collections/index.html':'collections'}
+              if paths and all(p in allowed for p in paths):
+                  result={'mode':'targeted','paths':paths,'tests':sorted({allowed[p] for p in paths})}
+          except Exception as exc:
+              print('Full coverage fallback:',exc)
+          Path('/tmp/jus3d-test-selection.json').write_text(json.dumps(result))
+          print(result)
+          PY
       - uses: actions/configure-pages@v5
       - name: Install social preview renderer
         run: python -m pip install pillow requests beautifulsoup4
@@ -392,7 +413,7 @@ jobs:
           from pathlib import Path
           root=Path('/tmp/site')
           files=['index.html','assets/ownership-details.js','data/verified-homepage.json']
-          manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
+          manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'test_selection':json.loads(Path('/tmp/jus3d-test-selection.json').read_text()),'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
           (root/'data/build-version.json').write_text(json.dumps(manifest))
           PY
           # Historical design experiments remain in Git history, not the public site.

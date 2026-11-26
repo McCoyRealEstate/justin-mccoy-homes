@@ -14,16 +14,43 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Select affected regression
+        id: selection
+        env:
+          EVENT: ${{ github.event_name }}
+          DEPLOY_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          python - <<'PY'
+          import os,json,urllib.request
+          run=True
+          if os.environ['EVENT']=='workflow_run':
+              try:
+                  with urllib.request.urlopen('https://jus3d.com/data/build-version.json?selection='+os.environ['DEPLOY_RUN'],timeout=15) as response:
+                      m=json.load(response)
+                  selection=m['test_selection']
+                  if str(m['run_id'])==os.environ['DEPLOY_RUN'] and selection['mode']=='targeted':
+                      run='collections' in selection['tests']
+              except Exception as exc:
+                  print('Full coverage fallback:',exc)
+          print('Run regression:',run)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('run='+str(run).lower()+'\n')
+          PY
       - uses: actions/setup-node@v4
+        if: steps.selection.outputs.run == 'true'
         with:
           node-version: '22'
       - run: npm install playwright
+        if: steps.selection.outputs.run == 'true'
       - uses: actions/cache@v4
+        if: steps.selection.outputs.run == 'true'
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}-chromium-webkit
       - run: npx playwright install --with-deps chromium webkit
+        if: steps.selection.outputs.run == 'true'
       - name: Verify collection selection and shared links
+        if: steps.selection.outputs.run == 'true'
         run: |
           node --input-type=module <<'JS'
           import { chromium, webkit, devices } from 'playwright';
