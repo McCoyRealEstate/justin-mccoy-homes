@@ -1,5 +1,7 @@
 name: Floor plan viewer regression
 on:
+  schedule:
+    - cron: '35 8 * * *'
   workflow_dispatch:
   workflow_run:
     workflows: ["Publish standalone Homepage V2"]
@@ -9,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   mobile:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

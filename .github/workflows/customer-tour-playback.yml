@@ -1,5 +1,7 @@
 name: Customer virtual tour playback
 on:
+  schedule:
+    - cron: '10 8 * * *'
   workflow_dispatch:
     inputs:
       tour_url:

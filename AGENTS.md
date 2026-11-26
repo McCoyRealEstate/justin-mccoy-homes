@@ -20,3 +20,6 @@ Batch related changes into one atomic commit or PR before production publication
 - Validate reusable repository cleanup guard; complete dependency review before deleting legacy code.
 - Consolidate shared listing cards, then search and property details; preserve inventory identity and uncertainty safeguards.
 - Do not begin Intelligent Home Finder until these gates are verified.
+
+## Regression efficiency
+Documentation-only and standalone preflight/cleanup-guard edits do not deploy. Scheduled browser regressions run daily, staggered at 08:00–08:35 UTC. Keep deployment-triggered checks until a verified change classifier can safely select affected tests; unknown changes must fail open to full coverage. Never infer a successful test from cancellation. Independent development may proceed against the last verified baseline.
