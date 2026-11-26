@@ -1,19 +1,20 @@
+@import url("/assets/design-foundation.css");
 /* Shared visual foundation for utility pages; scoped to avoid inventory and calendar regressions. */
-body.jus-utility{background:#f8f7f3;color:#14283e;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
-.jus-utility header{background:#091b2c;padding:0;border-bottom:1px solid #b89a62}
+body.jus-utility{background:var(--jm-utility-bg);color:var(--jm-utility-ink);font-family:var(--jm-font-body)}
+.jus-utility header{background:var(--jm-utility-header);padding:0;border-bottom:1px solid #b89a62}
 .jus-utility header .wrap{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .jus-utility .brand{font-size:clamp(20px,4vw,26px);font-weight:800;letter-spacing:-.04em;text-transform:uppercase;text-decoration:none;color:white;line-height:1.1}
-.jus-utility .brand span{color:#d5b174}
+.jus-utility .brand span{color:var(--jm-gold)}
 .jus-utility .brand small{display:block;font-size:10px;letter-spacing:.14em;color:#bac8d5;margin-top:4px}
-.jus-utility .hero{background:#0b1d2e;color:white;padding:28px 0 32px}
-.jus-utility .hero h1{font:400 clamp(34px,6vw,56px)/1.12 Georgia,serif;margin:10px 0}
-.jus-utility .hero em{color:#d5b174;font-style:normal}
-.jus-utility .eyebrow{color:#d5b174;font-size:12px;font-weight:750;letter-spacing:.17em;text-transform:uppercase}
+.jus-utility .hero{background:var(--jm-utility-hero);color:white;padding:28px 0 32px}
+.jus-utility .hero h1{font:400 clamp(34px,6vw,56px)/1.12 var(--jm-font-heading);margin:10px 0}
+.jus-utility .hero em{color:var(--jm-gold);font-style:normal}
+.jus-utility .eyebrow{color:var(--jm-gold);font-size:12px;font-weight:750;letter-spacing:.17em;text-transform:uppercase}
 .jus-utility .hero p{color:#d3dce5;line-height:1.5;margin:0}
-.jus-utility .card,.jus-utility .panel{border:1px solid #dedbd4;border-radius:16px;background:white;box-shadow:none}
-.jus-utility .btn,.jus-utility #request{border-radius:9px;min-height:48px}
-.jus-utility .btn:not(.gold){background:#11283f;color:white;border:1px solid #b99a61}
-.jus-utility .gold,.jus-utility #request{background:#d5b174;color:#10263b}
+.jus-utility .card,.jus-utility .panel{border:1px solid var(--jm-border);border-radius:var(--jm-card-radius);background:white;box-shadow:none}
+.jus-utility .btn,.jus-utility #request{border-radius:var(--jm-button-radius);min-height:var(--jm-touch-height)}
+.jus-utility .btn:not(.gold){background:var(--jm-utility-button);color:white;border:1px solid #b99a61}
+.jus-utility .gold,.jus-utility #request{background:var(--jm-gold);color:#10263b}
 .jus-utility button:focus-visible,.jus-utility a:focus-visible,.jus-utility select:focus-visible{outline:2px solid #a68142;outline-offset:3px}
 .jus-utility #slots,.jus-utility .panel button{border-radius:8px}
 @media(max-width:620px){.jus-utility .hero{padding:24px 0 28px}.jus-utility .card,.jus-utility .panel{padding:16px}}

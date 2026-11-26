@@ -1,0 +1,19 @@
+/* Jus3D shared design tokens. Component styles consume these tokens. */
+:root {
+  --jm-font-body: system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --jm-font-heading: Georgia,serif;
+  --jm-navy: #10283f;
+  --jm-gold: #d5b174;
+  --jm-utility-header: #091b2c;
+  --jm-utility-hero: #0b1d2e;
+  --jm-utility-ink: #14283e;
+  --jm-utility-bg: #f8f7f3;
+  --jm-utility-button: #11283f;
+  --jm-border: #dedbd4;
+  --jm-card-radius: 16px;
+  --jm-button-radius: 9px;
+  --jm-touch-height: 48px;
+  --jm-spec-size: clamp(10px,3.25vw,14px);
+  --jm-spec-gap: 6px 10px;
+  --jm-spec-icon: 17px;
+}

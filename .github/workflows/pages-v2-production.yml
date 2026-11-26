@@ -416,6 +416,27 @@ jobs:
           manifest={'commit':Path('/tmp/jus3d-source-commit').read_text().strip(),'run_id':os.environ['GITHUB_RUN_ID'],'test_selection':json.loads(Path('/tmp/jus3d-test-selection.json').read_text()),'files':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in files}}
           (root/'data/build-version.json').write_text(json.dumps(manifest))
           PY
+          # Load the shared foundation on all public HTML pages; preserve component-specific layouts.
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,re
+          root=Path('/tmp/site')
+          assets=['design-foundation.css','listing-card.css','utility-design.css']
+          versions={a:hashlib.sha256((root/'assets'/a).read_bytes()).hexdigest()[:12] for a in assets}
+          for a in assets[1:]:
+              p=root/'assets'/a
+              p.write_text(p.read_text().replace('/assets/design-foundation.css"', '/assets/design-foundation.css?v='+versions[assets[0]]+'"'))
+              versions[a]=hashlib.sha256(p.read_bytes()).hexdigest()[:12]
+          for page in root.rglob('*.html'):
+              if page.name=='inventory-source.html':continue
+              content=page.read_text(errors='strict')
+              if '</head>' not in content:continue
+              for a in assets:
+                  content=re.sub(r'(/assets/'+re.escape(a)+r')(?:\?v=[^"\s<>]+)?(?=")',lambda m:m.group(1)+'?v='+versions[a],content)
+              if '/assets/design-foundation.css' not in content:
+                  content=content.replace('</head>','<link rel="stylesheet" href="/assets/design-foundation.css?v='+versions[assets[0]]+'"></head>',1)
+              page.write_text(content)
+          PY
           # Historical design experiments remain in Git history, not the public site.
           rm -rf /tmp/site/preview
           rm -f /tmp/site/redesign-preview.html
