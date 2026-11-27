@@ -185,3 +185,5 @@ jobs:
 # Refresh verified property and community features
 
 # Audit floor plan configuration and image references
+
+# Final live-source integration after payload validation regression.
