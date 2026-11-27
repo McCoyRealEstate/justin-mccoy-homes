@@ -17,3 +17,6 @@
 .inventory-section .jm-search-panel button{grid-column:1/-1;background:var(--jm-utility-button);color:white;border:1px solid var(--jm-gold);border-radius:var(--jm-button-radius);min-height:var(--jm-touch-height)}
 .inventory-section .inventory-count{margin:0 0 14px;font-size:13px;line-height:1.5}
 @media(max-width:620px){.inventory-section .inventory-controls.jm-search-panel{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px;gap:8px}.inventory-section .jm-search-panel .community-search-query{grid-column:1/-1}}
+
+/* A lone city filter spans the mobile community search row. */
+@media(max-width:620px){#communities .jm-search-panel .field:has(#community-city){grid-column:1/-1}}
