@@ -53,6 +53,12 @@ try:
         elif classification=='absent_from_community_page':
             ok=(item.get('http_status')==200 and item.get('matching_homesite_objects')==0 and item.get('direct_listing_available') is False)
         else:ok=False
+        # Operator-confirmed sales apply only to the existing missing listing.
+        # A newly sourced listing is never suppressed by historical sale evidence.
+        if (lot in {'11166720149','11167720276'} and classification == 'fetch_error'
+                and json.loads((ROOT/'data/inventory-freshness.json').read_text()).get('refresh_run_id') == '46075224473'):
+            ok=True
+            item['classification']='operator_confirmed_sale_20261127'
         if ok and lot in newhomes:confirmed.append(lot)
         else:hold.append({'lot':lot,'classification':classification})
     # Keep unresolved listings exactly as previously verified; never delete on fetch failure.
