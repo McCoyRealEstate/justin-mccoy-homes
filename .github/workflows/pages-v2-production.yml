@@ -397,9 +397,9 @@ jobs:
               fragment=(root/'assets/advisor-section.html').read_text()
               old=soup.select_one('section.advisor, section.jm-advisor')
               if old:
-                  s=s.replace(str(old),fragment,1) if str(old) in s else re.sub(r'<section\\b[^>]*class="advisor"[^>]*>.*?</section>',lambda m:fragment,s,count=1,flags=re.S)
+                  s=s.replace(str(old),fragment,1) if str(old) in s else re.sub(r'<section\b[^>]*class="advisor"[^>]*>.*?</section>',lambda m:fragment,s,count=1,flags=re.S)
               else:
-                  s=re.sub(r'(?=<footer\\b|</body>)',lambda m:fragment,s,count=1,flags=re.I)
+                  s=re.sub(r'(?=<footer\b|</body>)',lambda m:fragment,s,count=1,flags=re.I)
               assert s.count('class="jm-advisor"')==1, str(page)
               s=s.replace('</head>','<link rel="stylesheet" href="/assets/advisor-section.css"></head>',1)
               assert '</head>' in s.lower(), str(page)
