@@ -1,14 +1,19 @@
 name: Repository cleanup validation
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
   push:
-    branches: [maintenance/repository-cleanup]
+    branches: [maintenance/repository-cleanup, main]
+    paths:
+      - '.github/workflows/repository-cleanup-validation.yml'
+      - '.github/workflows/pages-v2-production.yml'
+      - 'assets/**'
 permissions:
   contents: read
 jobs:
   validate:
-    if: github.event_name == 'push' || github.head_ref == 'maintenance/repository-cleanup'
+    if: github.event_name != 'pull_request' || github.head_ref == 'maintenance/repository-cleanup'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +32,10 @@ jobs:
           base=subprocess.check_output(['git','merge-base','HEAD','origin/main'],text=True).strip()
           changes=subprocess.check_output(['git','diff','--name-status',base,'HEAD'],text=True).splitlines()
           protected={'index.html','homepage-v2-preview.html','build_lennar_preview.py','verify_lennar_preview.py','lennar_phase6_dry_run.py','lennar_phase8_finalize.py','prepare_city_inventory.py','generate_local_pages.py','generate_community_pages.py','generate_city_experience.py','generate_property_previews.py','build_floorplan_library.py','assets/ownership-details.js','.github/workflows/lennar-phase8-auto-refresh.yml','.github/workflows/pages-v2-production.yml'}
+          protected.update(str(p) for p in Path('assets').glob('*.js'))
+          protected.update(str(p) for p in Path('assets').glob('*.css'))
+          protected.add('assets/justin-mccoy-headshot.webp')
+          assert subprocess.check_output(['git','hash-object','assets/justin-mccoy-headshot.webp'],text=True).strip() == 'f03f5c1446419a50165c55194e4268ad0881977d'
           deleted=set(subprocess.check_output(['git','diff','--diff-filter=D','--name-only',base,'HEAD'],text=True).splitlines())
           assert not deleted & protected, deleted & protected
           assert all(Path(p).is_file() for p in protected)

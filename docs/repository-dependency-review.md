@@ -11,3 +11,6 @@ The original cleanup workflow hard-coded eight already-retired preview files. Re
 
 ## Next consolidation
 Move shared presentation out of separate homepage/community implementations incrementally; test synthetic new and restored communities and actual property details before retiring old code.
+
+## Final shared asset review
+All thirteen shared JS/CSS files have references in active templates, generators, components or the production workflow. Retain all. The headshot is now tracked on main using its original blob f03f5c1446419a50165c55194e4268ad0881977d; production no longer fetches the development branch for it. No files or branches deleted. Dynamic media and historical diagnostics are intentionally retained. Cleanup validation and production regression must pass before sign-off.
