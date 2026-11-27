@@ -1,0 +1,19 @@
+name: Source recovery regression
+on:
+  push:
+    branches: [maintenance/source-recovery-20261127, main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: python test_lennar_source_retry.py
+      - run: python test_inventory_lifecycle.py
