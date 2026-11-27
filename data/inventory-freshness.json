@@ -1,7 +1,7 @@
 {
-  "verified_at": "2026-11-27T05:27:23.418455+00:00",
-  "source_sha256": "4dea494a07cd5e3c2ff0148bcfc6720f47bf4e2912ea9ac0a772b46d947ef0e2",
-  "refresh_run_id": "45945834700",
+  "verified_at": "2026-11-27T07:41:21.678958+00:00",
+  "source_sha256": "1370e095c90167184e762811a0fdf1b6fd6f40f8b8915133dbc079eb9b5271e9",
+  "refresh_run_id": "45960130048",
   "homes": 127,
   "communities": 26,
   "held_removals": [
@@ -12,6 +12,10 @@
     {
       "lot": "11167720276",
       "classification": "fetch_error"
+    },
+    {
+      "lot": "26336730627",
+      "classification": "listing_present"
     }
   ],
   "verification_status": "partial"
