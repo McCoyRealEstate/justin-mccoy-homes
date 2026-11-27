@@ -1,0 +1,17 @@
+name: Inventory lifecycle regression
+on:
+  push:
+    branches: [maintenance/inventory-lifecycle-20261127, main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python test_inventory_lifecycle.py

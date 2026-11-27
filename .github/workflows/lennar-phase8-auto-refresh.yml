@@ -4,7 +4,7 @@ name: Lennar Phase 8 - Automatic Refresh (Every Hour)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, maintenance/inventory-lifecycle-20261127]
     paths:
       - '.github/workflows/lennar-phase8-auto-refresh.yml'
   schedule:
