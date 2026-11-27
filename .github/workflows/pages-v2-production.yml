@@ -392,6 +392,15 @@ jobs:
               if not page.is_file(): continue
               s=page.read_text()
               soup=BeautifulSoup(s,'html.parser')
+              # One canonical advisor section across existing and newly generated browse pages.
+              fragment=(root/'assets/advisor-section.html').read_text()
+              old=soup.select_one('section.advisor, section.jm-advisor')
+              if old:
+                  s=s.replace(str(old),fragment,1) if str(old) in s else re.sub(r'<section\\b[^>]*class="advisor"[^>]*>.*?</section>',lambda m:fragment,s,count=1,flags=re.S)
+              else:
+                  s=re.sub(r'(?=<footer\\b|</body>)',lambda m:fragment,s,count=1,flags=re.I)
+              assert s.count('class="jm-advisor"')==1, str(page)
+              s=s.replace('</head>','<link rel="stylesheet" href="/assets/advisor-section.css"></head>',1)
               assert '</head>' in s.lower(), str(page)
               import re
               s=re.sub(r'</head>',lambda m:'<link rel="stylesheet" href="/assets/page-spacing.css?v='+version+'">'+m.group(0),s,count=1,flags=re.I)
@@ -413,7 +422,7 @@ jobs:
           from pathlib import Path
           import hashlib,re
           root=Path('/tmp/site')
-          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css','property-details.css']
+          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css','property-details.css','advisor-section.css']
           versions={a:hashlib.sha256((root/'assets'/a).read_bytes()).hexdigest()[:12] for a in assets}
           for a in assets[1:]:
               p=root/'assets'/a
