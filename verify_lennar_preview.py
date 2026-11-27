@@ -11,7 +11,8 @@ OUT=ROOT/"lennar_preview"
 OUT.mkdir(exist_ok=True)
 BASE="https://www.lennar.com/new-homes/florida/orlando/"
 report={"mode":"READ ONLY; no changes to live site","time_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"checks":{},"listings":[],"photo_fallbacks":[],"warnings":[],"errors":[]}
-s=requests.Session()
+from lennar_source_retry import configure_source_session
+s=configure_source_session(requests.Session())
 s.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36","Accept-Language":"en-US,en;q=0.9"})
 def const(text,key):
     m=re.search(r"(?m)^(const\s+"+re.escape(key)+r"\s*=\s*)",text)
