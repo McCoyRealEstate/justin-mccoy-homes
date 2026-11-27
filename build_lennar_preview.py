@@ -12,7 +12,8 @@ INV=BASE+"promo/olhlen_nhc_inventory"
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"lennar_preview"
 OUT.mkdir(exist_ok=True)
-s=requests.Session()
+from lennar_source_retry import configure_source_session
+s=configure_source_session(requests.Session())
 s.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36","Accept-Language":"en-US,en;q=0.9"})
 report={"mode":"DRY RUN; index.html never modified","utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"errors":[],"warnings":[]}
 
