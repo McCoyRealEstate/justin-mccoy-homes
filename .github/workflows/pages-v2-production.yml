@@ -392,6 +392,7 @@ jobs:
               if not page.is_file(): continue
               s=page.read_text()
               soup=BeautifulSoup(s,'html.parser')
+              import re
               # One canonical advisor section across existing and newly generated browse pages.
               fragment=(root/'assets/advisor-section.html').read_text()
               old=soup.select_one('section.advisor, section.jm-advisor')
