@@ -12,6 +12,7 @@ INV=BASE+"promo/olhlen_nhc_inventory"
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"lennar_preview"
 OUT.mkdir(exist_ok=True)
+from lennar_source_payload import parse_source_state
 from lennar_source_retry import configure_source_session
 s=configure_source_session(requests.Session())
 s.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36","Accept-Language":"en-US,en;q=0.9"})
@@ -28,10 +29,7 @@ def put(text,key,val):
     return text[:a]+json.dumps(val,separators=(",",":"),ensure_ascii=False)+text[b:]
 def read(url):
     r=s.get(url,timeout=50);r.raise_for_status()
-    tag=BeautifulSoup(r.text,"html.parser").find("script",id="__NEXT_DATA__")
-    if not tag or not tag.string: fail("No NEXT_DATA: "+url)
-    st=json.loads(tag.string)["props"]["pageProps"]["initialApolloState"]
-    if not isinstance(st,dict) or not st:fail("Empty Apollo state: "+url)
+    st=parse_source_state(r.text)
     return st
 def objects(st,kind):
     return [v for v in st.values() if isinstance(v,dict) and v.get("__typename")==kind]
