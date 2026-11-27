@@ -401,6 +401,12 @@ jobs:
               else:
                   s=re.sub(r'(?=<footer\b|</body>)',lambda m:fragment,s,count=1,flags=re.I)
               assert s.count('class="jm-advisor"')==1, str(page)
+              footer=(root/'assets/site-footer.html').read_text()
+              s,n=re.subn(r'<footer\b[^>]*>.*?</footer>',lambda m:footer,s,count=1,flags=re.I|re.S)
+              if not n:
+                  s=re.sub(r'</body>',lambda m:footer+m.group(0),s,count=1,flags=re.I)
+              assert s.count('id="jm-site-footer"')==1, str(page)
+              s=s.replace('</head>','<link rel="stylesheet" href="/assets/site-footer.css"></head>',1)
               s=s.replace('</head>','<link rel="stylesheet" href="/assets/advisor-section.css"></head>',1)
               assert '</head>' in s.lower(), str(page)
               import re
@@ -423,7 +429,7 @@ jobs:
           from pathlib import Path
           import hashlib,re
           root=Path('/tmp/site')
-          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css','property-details.css','advisor-section.css']
+          assets=['design-foundation.css','listing-card.css','utility-design.css','search-interface.css','property-details.css','advisor-section.css','site-footer.css']
           versions={a:hashlib.sha256((root/'assets'/a).read_bytes()).hexdigest()[:12] for a in assets}
           for a in assets[1:]:
               p=root/'assets'/a
