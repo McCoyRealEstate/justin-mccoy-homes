@@ -2,7 +2,7 @@ name: Community lifecycle regression
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'maintenance/community-reporting-20261127']
     paths:
       - generate_community_pages.py
       - test_community_lifecycle.py
