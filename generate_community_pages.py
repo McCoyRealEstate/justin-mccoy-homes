@@ -79,7 +79,8 @@ for name,city,slug in targets:
     if name=='Meadow Pointe':
         body=body.replace('<div class="cards">', '<div class="location-card"><div><div class="location-label">📍 Visit Our Welcome Home Center</div><div class="location-address">929 Tundra Loop<br>Groveland, FL 34736</div></div><a class="location-link" href="https://www.google.com/maps/search/?api=1&amp;query=929%20Tundra%20Loop%2C%20Groveland%2C%20FL%2034736" target="_blank" rel="noopener noreferrer">Get Directions →</a></div><div class="cards">',1)
     (out/(slug+'.html')).write_text(render(title,desc,url,body),encoding='utf-8')
-    links.append((name,city,slug,url))
+    if any(h.get('availability') in ('Move-in ready','Under construction') for h in homes):
+        links.append((name,city,slug,url))
 # Persist the last verified directory so removed communities retain useful landing pages.
 registry_path=ROOT/'data/community-seo-registry.json'
 if directory:
@@ -112,7 +113,7 @@ sitemap=ROOT/'sitemap.xml'
 tree=ET.parse(sitemap)
 ns='{http://www.sitemaps.org/schemas/sitemap/0.9}'
 existing={n.text for n in tree.getroot().iter(ns+'loc')}
-for url in [hub]+[x[3] for x in links]:
+for url in [hub]+['https://jus3d.com/communities/'+slug+'.html' for _,_,slug in targets]+(['https://jus3d.com/communities/'+slug+'.html' for slug in registry] if directory else []):
     if url not in existing:
         entry=ET.SubElement(tree.getroot(),ns+'url')
         ET.SubElement(entry,ns+'loc').text=url
