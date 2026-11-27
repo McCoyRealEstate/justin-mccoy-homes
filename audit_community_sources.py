@@ -4,7 +4,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin,urlparse
 from pathlib import Path
 BASE="https://www.lennar.com/new-homes/florida/orlando"
-session=requests.Session()
+from lennar_source_retry import configure_source_session
+session=configure_source_session(requests.Session())
 session.headers["User-Agent"]="Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36"
 def read(url):
     r=session.get(url,timeout=60);r.raise_for_status()
