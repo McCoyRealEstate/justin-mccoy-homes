@@ -11,7 +11,9 @@ OUT=ROOT/"lennar_preview"
 OUT.mkdir(exist_ok=True)
 BASE="https://www.lennar.com/new-homes/florida/orlando/"
 report={"mode":"READ ONLY; no changes to live site","time_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"checks":{},"listings":[],"photo_fallbacks":[],"warnings":[],"errors":[]}
-s=requests.Session()
+from lennar_source_payload import parse_source_state
+from lennar_source_retry import configure_source_session
+s=configure_source_session(requests.Session())
 s.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36","Accept-Language":"en-US,en;q=0.9"})
 def const(text,key):
     m=re.search(r"(?m)^(const\s+"+re.escape(key)+r"\s*=\s*)",text)
@@ -32,12 +34,7 @@ def verify_lennar_listing(lot,url):
         item["redirected"]=canonical(target)!=canonical(r.url)
         if r.status_code!=200:
             item["classification"]="http_error";return item
-        soup=BeautifulSoup(r.text,"html.parser")
-        tag=soup.find("script",id="__NEXT_DATA__")
-        if not tag or not tag.string:
-            item["classification"]="no_next_data";return item
-        data=json.loads(tag.string)
-        st=data.get("props",{}).get("pageProps",{}).get("initialApolloState",{})
+        st=parse_source_state(r.text)
         matches=[h for h in objects(st,"HomesiteType") if str(h.get("lotid","")).lower()==lot]
         item["matching_homesite_objects"]=len(matches)
         item["statuses"]=sorted({str(h.get("status")) for h in matches})
@@ -82,9 +79,7 @@ try:
                     r=s.get(url,timeout=35)
                     item["http_status"]=r.status_code
                     r.raise_for_status()
-                    tag=BeautifulSoup(r.text,"html.parser").find("script",id="__NEXT_DATA__")
-                    if not tag or not tag.string:raise ValueError("No NEXT_DATA")
-                    st=json.loads(tag.string).get("props",{}).get("pageProps",{}).get("initialApolloState",{})
+                    st=parse_source_state(r.text)
                     matches=[h for h in objects(st,"HomesiteType") if str(h.get("lotid","")).lower()==lot]
                     item["matching_homesite_objects"]=len(matches)
                     item["statuses"]=sorted({str(h.get("status")) for h in matches})
