@@ -243,6 +243,37 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from bs4 import BeautifulSoup
+          root=Path('/tmp/site')
+          for folder in ('communities','areas'):
+              checked=0
+              for page in sorted((root/folder).glob('*.html')):
+                  soup=BeautifulSoup(page.read_text(),'html.parser')
+                  if not soup.head: continue
+                  canonical=soup.head.select('link[rel="canonical"]')
+                  expected='https://jus3d.com/'+folder+'/'+page.name
+                  if not canonical or canonical[0].get('href')!=expected:
+                      # Directory landing pages and redirects are not detail routes.
+                      if page.name=='index.html' or soup.select_one('meta[http-equiv="refresh"]'): continue
+                      raise AssertionError(str(page)+' incorrect canonical')
+                  assert len(canonical)==1, page
+                  assert len(soup.head.select('title'))==1, page
+                  descriptions=soup.head.select('meta[name="description"]')
+                  assert len(descriptions)==1 and descriptions[0].get('content','').strip(), page
+                  assert not any('noindex' in m.get('content','').lower() for m in soup.head.select('meta[name="robots"]')), page
+                  schemas=[json.loads(m.get_text()) for m in soup.head.select('script[type="application/ld+json"]')]
+                  nodes=[n for s in schemas for n in (s.get('@graph',[s]) if isinstance(s,dict) else s)]
+                  web=[n for n in nodes if n.get('@type')=='WebPage' and n.get('url')==expected]
+                  assert web, str(page)+' missing route-specific schema'
+                  publisher=web[0].get('publisher',{})
+                  assert publisher.get('@id')=='https://jus3d.com/#justin-mccoy', str(page)+' missing professional identity'
+                  checked+=1
+              assert checked>0, folder
+              print('Local SEO metadata verified:',folder,checked)
+          PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
           root=Path('/tmp/site')
           directory=json.loads((root/'data/verified-homepage.json').read_text())['D']['c']
           assert isinstance(directory,list), 'Unexpected community directory format'
