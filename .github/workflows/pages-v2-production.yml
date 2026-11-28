@@ -586,3 +586,40 @@ jobs:
                   if attempt==11: raise
                   time.sleep(10)
           PY
+
+      - name: Audit live domain and canonical responses
+        run: |
+          python - <<'PY'
+          import json, requests
+          from bs4 import BeautifulSoup
+          primary='https://jus3d.com/'
+          urls=[primary,'http://jus3d.com/','https://www.jus3d.com/','http://www.jus3d.com/',primary+'index.html']
+          report=[]
+          for url in urls:
+              try:
+                  r=requests.get(url,timeout=20)
+                  soup=BeautifulSoup(r.text,'html.parser')
+                  canon=[x.get('href') for x in soup.select('head link[rel="canonical"]')]
+                  robots=[x.get('content','') for x in soup.select('head meta[name="robots"]')]
+                  robots.append(r.headers.get('X-Robots-Tag',''))
+                  redirects=[{'status':x.status_code,'url':x.url,'location':x.headers.get('Location')} for x in r.history]
+                  ok=r.status_code==200 and canon==[primary] and not any('noindex' in x.lower() for x in robots)
+                  if url not in (primary,primary+'index.html'):
+                      ok=ok and r.url==primary and bool(redirects) and all(x['status'] in (301,308) for x in redirects)
+                  if url==primary: ok=ok and r.url==primary
+                  report.append({'url':url,'status':r.status_code,'final_url':r.url,'redirects':redirects,'canonical':canon,'robots':robots,'passed':ok})
+              except requests.RequestException as exc:
+                  report.append({'url':url,'passed':False,'error':str(exc)})
+          print(json.dumps(report,indent=2))
+          from pathlib import Path
+          Path('/tmp/domain-seo-audit.json').write_text(json.dumps(report,indent=2))
+          if not all(x['passed'] for x in report):
+              print('::warning::Domain SEO audit requires review; DNS and hosting redirects are managed outside this build.')
+          PY
+      - name: Retain live domain SEO audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-seo-audit
+          path: /tmp/domain-seo-audit.json
+          if-no-files-found: ignore
