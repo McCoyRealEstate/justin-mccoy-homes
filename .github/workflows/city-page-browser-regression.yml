@@ -37,6 +37,7 @@ jobs:
           (root/'assets').mkdir(parents=True,exist_ok=True)
           homepage=pathlib.Path('homepage-v2-preview.html').read_text()
           homepage=homepage.replace('/index.html?phase8=','/inventory-source.html?phase8=')
+          homepage=homepage.replace('<meta name="robots" content="noindex">','<link rel="canonical" href="https://jus3d.com/">')
           (root/'index.html').write_text(homepage)
           for name in ('groveland','clermont','st-cloud','davenport','haines-city'):
               city={'groveland':'Groveland','clermont':'Clermont','st-cloud':'St. Cloud','davenport':'Davenport','haines-city':'Haines City'}[name]
