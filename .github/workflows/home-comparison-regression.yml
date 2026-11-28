@@ -100,7 +100,9 @@ jobs:
                 const rate=page.locator('#finance-fields label').filter({hasText:/Interest Rate/}).locator('input');
                 const paymentRow=page.locator('tbody tr').filter({has:page.getByRole('rowheader',{name:'Monthly payment estimate',exact:true})});
                 const before=await paymentRow.locator('td').allTextContents();
-                await rate.fill('4.99');
+                if(await rate.inputValue()!=='6.25')throw Error('Incorrect default mortgage rate');
+                  if(!await page.getByRole('rowheader',{name:'Homesite',exact:true}).count())throw Error('Missing homesite comparison row');
+                  await rate.fill('4.99');
                 const after=await paymentRow.locator('td').allTextContents();
                 if(after.some(x=>!x.includes('/mo'))||JSON.stringify(before)===JSON.stringify(after))throw Error('Decimal rate failed '+JSON.stringify(after));
                 await page.getByRole('button',{name:'Clear Comparison',exact:true}).click();
