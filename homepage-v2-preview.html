@@ -67,7 +67,7 @@ function populate(data,meta){
  const requested=new URLSearchParams(location.search).get('home');if(requested){const match=homes.find(h=>String(h.lot||'')===requested);if(match){browseMode('homes');openProperty(match)}else{ $('detailbody').replaceChildren();const p=document.createElement('p');p.textContent='This property is not in the current verified inventory. Contact Justin for availability or similar homes.';$('detailbody').append(p);const a=document.createElement('a');a.href='sms:+14075725398?body='+encodeURIComponent('Hi Justin, please confirm availability for property '+requested);a.textContent='Contact Justin';$('detailbody').append(a);$('detail').showModal()}}
 }
 let savedHomes=new Set();try{savedHomes=new Set(JSON.parse(localStorage.getItem('jm-favorites-v1')||'[]').map(v=>String(v).trim().toLowerCase()))}catch(e){}let favoritesOnly=false;
-const homesiteLabel=lot=>{const m=String(lot??'').trim().match(/\d{4}$/);return m?'Homesite #'+m[0]:''};
+const homesiteLabel=lot=>{const m=String(lot??'').trim().match(/\d+$/);return m?'Homesite #'+m[0].slice(-4).padStart(4,'0'):''};
 const favoriteKey=h=>String(h.lot||[h.community,h.address,h.plan].join('|')).trim().toLowerCase();
 function updateFavorites(){const selected=homes.filter(h=>savedHomes.has(favoriteKey(h)));$('favorites-toggle').textContent=favoritesOnly?'All Homes':'♡ My Favorites ('+selected.length+')';$('favorites-toggle').setAttribute('aria-pressed',String(favoritesOnly));$('compare-favorites').hidden=!favoritesOnly||!selected.length;$('send-favorites').hidden=!favoritesOnly||!selected.length;}
 function render(){
