@@ -1,9 +1,26 @@
 {
-  "verified_at": "2026-11-28T06:14:55.923573+00:00",
-  "source_sha256": "ff2ee3c63ebef2ba23fb264f430bd7056a0afa9a9da41141b6c71b9be916cd84",
-  "refresh_run_id": "46115686255",
-  "homes": 134,
+  "verified_at": "2026-11-28T07:38:56.008084+00:00",
+  "source_sha256": "2403eb8c58606a1c08c355c14ac581bce381ce24d65e96508146202c0e755bb7",
+  "refresh_run_id": "46122131760",
+  "homes": 135,
   "communities": 26,
-  "held_removals": [],
-  "verification_status": "complete"
+  "held_removals": [
+    {
+      "lot": "11116720223",
+      "classification": "listing_present"
+    },
+    {
+      "lot": "11166720288",
+      "classification": "fetch_error"
+    },
+    {
+      "lot": "11171720136",
+      "classification": "listing_present"
+    },
+    {
+      "lot": "26382721739",
+      "classification": "listing_present"
+    }
+  ],
+  "verification_status": "partial"
 }
