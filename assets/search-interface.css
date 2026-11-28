@@ -20,3 +20,10 @@
 
 /* A lone city filter spans the mobile community search row. */
 @media(max-width:620px){#communities .jm-search-panel .field:has(#community-city){grid-column:1/-1}}
+
+/* Shared community results layout: filters first, then heading and inventory metadata. */
+.inventory-first .inventory-section:has(> .inventory-controls.jm-search-panel){display:flex;flex-direction:column}
+.inventory-first .inventory-section > .inventory-controls.jm-search-panel{order:-1;margin-bottom:18px!important}
+.inventory-first .inventory-section:has(> .inventory-controls.jm-search-panel)>h2{margin:0 0 10px!important}
+.hero.community-photo-hero>h1{margin-bottom:2px!important}
+.hero.community-photo-hero>.community-location{margin:2px 0 0!important;line-height:1.35!important}
