@@ -35,11 +35,17 @@ jobs:
               const browser=await engine.launch();
               try{
                 const page=await browser.newPage(options);
-                for(const path of ['/','/compare/','/collections/','/realtors/','/appointments/','/communities/meadow-pointe.html','/communities/knightsbridge.html']){
+                let homepageBrand;
+                for(const path of ['/','/compare/','/collections/','/realtors/','/appointments/','/areas/','/communities/','/communities/meadow-pointe.html','/communities/knightsbridge.html']){
                   const response=await page.goto('https://jus3d.com'+path+'?verify='+Date.now());
                   assert(response.ok(),path+' unavailable');
                   const toggle=page.locator('.jm-menu-toggle'),menu=page.locator('#jm-site-menu');
                   await toggle.waitFor();
+                  const wordmark=page.locator('header .jm-brand');
+                  assert.equal(await wordmark.count(),1,path+' missing or duplicate wordmark');
+                  const brandStyle=await wordmark.evaluate(e=>['.jm-brand-name','.jm-brand-surname','.jm-brand-subtitle'].map(selector=>{const node=e.querySelector(selector),c=getComputedStyle(node);return [node.textContent,c.fontFamily,c.fontSize,c.fontWeight,c.lineHeight,c.letterSpacing,c.color,c.display,c.textTransform,c.marginTop,c.marginBottom,c.paddingTop,c.paddingBottom]}));
+                  if(path==='/')homepageBrand=brandStyle;
+                  else assert.deepEqual(brandStyle,homepageBrand,path+' wordmark differs from homepage');
                   await page.locator('#jm-language').waitFor();
                   assert.equal(await page.locator('#jm-language').count(),1,path+' duplicate language control');
                   const languageStyle=await page.locator('#jm-language').evaluate(e=>{const c=getComputedStyle(e);return [c.backgroundColor,c.color,c.borderTopColor,c.borderRadius,c.height,c.width]});
