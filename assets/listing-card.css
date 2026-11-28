@@ -5,3 +5,7 @@
 /* Listing shell and availability badges shared with property detail dialogs. */
 .home,.home-card{border-radius:var(--jm-listing-radius)!important;overflow:hidden!important}.home>.visual,.home-card>img,.home-card>picture{border-radius:var(--jm-listing-photo-radius) var(--jm-listing-photo-radius) 0 0!important}
 .availability-badge.availability-badge,#detailbody .kicker.availability-badge,#community-property-detail .cp-status.availability-badge{display:inline-block!important;width:fit-content!important;max-width:100%;box-sizing:border-box!important;font-family:inherit!important;font-size:10px!important;font-weight:800!important;letter-spacing:.06em!important;text-transform:uppercase!important;line-height:1.4!important;padding:7px 9px!important;border-radius:3px!important;color:#47775e!important;background:#eaf3ec!important} .availability-badge.availability-badge[data-availability="other"],#detailbody .kicker.availability-badge[data-availability="other"],#community-property-detail .cp-status.availability-badge[data-availability="other"]{color:#946d32!important;background:#f5ecd9!important}
+
+/* Permanent navy listing CTA across generated inventory pages. */
+.home .property-details-cta,.home-card .property-details-cta{background:#10263e!important;color:#fff!important;border-color:#10263e!important}
+.home .property-details-cta:hover,.home-card .property-details-cta:hover{background:#0e2d48!important}
