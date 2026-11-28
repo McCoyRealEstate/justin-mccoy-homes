@@ -27,3 +27,6 @@
 .inventory-first .inventory-section:has(> .inventory-controls.jm-search-panel)>h2{margin:0 0 10px!important}
 .hero.community-photo-hero>h1{margin-bottom:2px!important}
 .hero.community-photo-hero>.community-location{margin:2px 0 0!important;line-height:1.35!important}
+
+/* Match the approved mobile community banner on desktop; retain underlying links. */
+@media(min-width:621px){.hero.community-title>.actions{display:none!important}}
