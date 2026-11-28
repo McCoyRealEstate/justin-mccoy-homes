@@ -125,8 +125,13 @@ jobs:
               subprocess.run([sys.executable,script,*args],cwd=p,check=True)
           from xml.etree import ElementTree as ET
           urls=[e.text for e in ET.parse(p/'sitemap.xml').findall('.//{*}loc')]
+          from urllib.parse import urlsplit, unquote
           assert len(urls)==len(set(urls))
           for url in urls:
+              parsed=urlsplit(url)
+              assert parsed.scheme=='https' and parsed.netloc=='jus3d.com', 'Noncanonical sitemap origin: '+url
+              assert '?' not in url and '#' not in url, 'Query or fragment in sitemap: '+url
+              assert not any(part in ('.','..') for part in unquote(parsed.path).split('/')), 'Invalid sitemap path: '+url
               assert url.startswith('https://jus3d.com/')
               rel=url.removeprefix('https://jus3d.com/')
               target=p/(rel+'index.html' if not rel or rel.endswith('/') else rel)
