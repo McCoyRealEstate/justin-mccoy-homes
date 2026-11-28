@@ -1,7 +1,7 @@
 name: Community discovery audit (read only)
 on:
   push:
-    branches: [inventory-community-audit]
+    branches: [inventory-community-audit, maintenance/community-reporting-20261127]
     paths:
       - audit_community_sources.py
       - build_lennar_preview.py
