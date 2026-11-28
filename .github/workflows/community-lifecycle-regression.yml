@@ -2,10 +2,12 @@ name: Community lifecycle regression
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'maintenance/community-reporting-20261127']
     paths:
       - generate_community_pages.py
       - test_community_lifecycle.py
+      - homepage-v2-preview.html
+      - generate_city_experience.py
       - .github/workflows/community-lifecycle-regression.yml
 permissions:
   contents: read
@@ -19,3 +21,31 @@ jobs:
         with:
           python-version: '3.12'
       - run: python test_community_lifecycle.py
+      - name: Verify homepage community grouping with real JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('homepage-v2-preview.html').read_text()
+          start=s.index(' const map=new Map((meta.directory||[])')
+          end=s.index(' render();draw();',start)
+          grouping=s[start:end]
+          fixture="""
+          const assert=require('node:assert/strict');
+          function group(homes,meta){let groups;
+          """+grouping+"""
+          return groups;}
+          const villa={id:'villa-mar',name:'Villa Mar',city:'Winter Haven'};
+          const active={id:'active',name:'Active',city:'Winter Haven'};
+          const home=(id,availability)=>({communityId:id,availability,price:400000});
+          const directory=[villa,active];
+          const ready=home('active','Move-in ready');
+          assert.deepEqual(group([ready],{directory}).map(g=>g.id),['active']);
+          assert.deepEqual(group([ready,home('villa-mar','Coming soon')],{directory}).map(g=>g.id),['active']);
+          assert.deepEqual(group([ready,home('villa-mar','Under construction')],{directory:[active]}).map(g=>g.id),['active']);
+          assert.equal(group([ready,home('villa-mar','Under construction')],{directory}).length,2);
+          assert.equal(group([home('villa-mar','Confirm availability')],{directory}).length,0);
+          console.log('Homepage community visibility fixtures passed');
+          """
+          Path('/tmp/community-visibility.cjs').write_text(fixture)
+          PY
+          node /tmp/community-visibility.cjs

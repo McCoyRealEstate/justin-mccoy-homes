@@ -42,7 +42,7 @@ if len(out)<15:raise SystemExit('Insufficient grounded city/community mappings')
 ids={c['id']:c for c in out}
 counts={i:0 for i in ids}
 for h in homes:
-    if h.get('cm') in counts and h.get('s') not in ('S','C'):counts[h['cm']]+=1
+    if h.get('cm') in counts and h.get('s') in ('M','U') and h.get('np')!=1:counts[h['cm']]+=1
 listings=[{'community':c['community'],'city':c['city'],'verified_home_count':counts[c['id']]} for c in out if counts[c['id']]>0]
 if not listings:raise SystemExit('No verified community listings')
 # Separate verified home details for community presentation. Preserve the original
@@ -82,7 +82,7 @@ for h in homes:
         'availability':('Coming soon' if is_soon else 'Move-in ready' if status=='M' else 'Under construction' if status=='U' else 'Confirm availability')
     })
 if len(home_listings)<100:raise SystemExit('Verified community home export unexpectedly small')
-payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(out),'communities':out,'listings':listings,'homes':home_listings}
+payload={'source':'verified homepage inventory','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'verified_count':len(homes),'community_count':len(listings),'registered_community_count':len(out),'communities_with_inventory':len(listings),'communities':out,'listings':listings,'homes':home_listings}
 target=Path(sys.argv[2] if len(sys.argv)>2 else 'lennar_preview/city-inventory.json')
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(json.dumps(payload,indent=2))

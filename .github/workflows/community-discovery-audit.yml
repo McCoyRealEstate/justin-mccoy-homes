@@ -1,7 +1,7 @@
 name: Community discovery audit (read only)
 on:
   push:
-    branches: [inventory-community-audit]
+    branches: [inventory-community-audit, maintenance/community-reporting-20261127]
     paths:
       - audit_community_sources.py
       - build_lennar_preview.py
@@ -21,7 +21,7 @@ jobs:
       - run: pip install requests beautifulsoup4 pillow
       - run: python audit_community_sources.py
       - run: python build_lennar_preview.py
-      - run: python validate_photo_hierarchy.py
+      - run: python validate_photo_hierarchy.py lennar_preview/index-preview.html
       - uses: actions/upload-artifact@v4
         if: always()
         with:

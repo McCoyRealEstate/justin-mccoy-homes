@@ -1,0 +1,82 @@
+name: City page browser regression
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'maintenance/community-reporting-20261127']
+    paths:
+      - 'tests/city-page-browser-regression.mjs'
+      - '.github/workflows/city-page-browser-regression.yml'
+      - 'homepage-v2-preview.html'
+      - 'generate_city_experience.py'
+      - 'generate_community_pages.py'
+      - 'prepare_city_inventory.py'
+permissions:
+  contents: read
+jobs:
+  city-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Build isolated local city-page fixture
+        run: |
+          python - <<'PY'
+          import json, pathlib, shutil
+          root=pathlib.Path('/tmp/jus3d-city-test')
+          (root/'areas').mkdir(parents=True,exist_ok=True)
+          (root/'communities').mkdir(parents=True,exist_ok=True)
+          (root/'data').mkdir(parents=True,exist_ok=True)
+          (root/'assets').mkdir(parents=True,exist_ok=True)
+          homepage=pathlib.Path('homepage-v2-preview.html').read_text()
+          homepage=homepage.replace('/index.html?phase8=','/inventory-source.html?phase8=')
+          homepage=homepage.replace('<meta name="robots" content="noindex">','<link rel="canonical" href="https://jus3d.com/">')
+          (root/'index.html').write_text(homepage)
+          for name in ('groveland','clermont','st-cloud','davenport','haines-city'):
+              city={'groveland':'Groveland','clermont':'Clermont','st-cloud':'St. Cloud','davenport':'Davenport','haines-city':'Haines City'}[name]
+              (root/'areas'/f'{name}.html').write_text('<html><head><title>'+city+'</title><meta name="description" content="City inventory"><link rel="canonical" href="https://jus3d.com/areas/'+name+'.html"></head><body></body></html>')
+          for item in pathlib.Path('assets').iterdir():
+              if item.is_file(): shutil.copy(item,root/'assets'/item.name)
+          # Use a 100-home minimum fixture to follow the actual production homepage loader.
+          directory=[
+            {'id':'meadow-pointe','n':'Meadow Pointe','city':'Groveland'},
+            {'id':'hidden-ridge','n':'Hidden Ridge','city':'Groveland'},
+            {'id':'villa-mar','n':'Villa Mar','city':'Winter Haven'},
+            {'id':'bridgewalk','n':'Bridgewalk','city':'St. Cloud'},
+            {'id':'waterlin','n':'Waterlin','city':'St. Cloud'},
+            {'id':'crosswinds','n':'Crosswinds','city':'Haines City'},
+          ]
+          homes=[]
+          for i in range(108):
+              cm=['meadow-pointe','hidden-ridge','bridgewalk','waterlin','crosswinds'][i%5]
+              homes.append({'lot':str(300000+i),'cm':cm,'pl':'Example','a':str(i+1)+' Test Lane','p':400000+i*100,'bd':4,'ba':3,'sq':2175,'s':'M' if i%4 else 'U'})
+          # Villa Mar is in the official directory but has zero available homes.
+          homes.append({'lot':'99001','cm':'villa-mar','pl':'Example','a':'Coming Soon Road','p':0,'bd':4,'ba':2,'sq':2000,'s':'C','np':1})
+          payload={'D':{'c':directory,'h':homes},'IMG':{},'PH':[],'PLANPH':{},'HIMG':{},'LU':{}}
+          (root/'data'/'verified-homepage.json').write_text(json.dumps(payload))
+          community_data={'communities':[{'id':c['id'],'community':c['n'],'city':c['city']} for c in directory],
+            'homes':[{'community_id':h['cm'],'community':next(c['n'] for c in directory if c['id']==h['cm']),
+                     'city':next(c['city'] for c in directory if c['id']==h['cm']),
+                     'lot':h['lot'],'plan':h['pl'],'price':h['p'],'sqft':h['sq'],
+                     'availability':'Coming soon' if h['s']=='C' else ('Under construction' if h['s']=='U' else 'Move-in ready')}
+                     for h in homes], 'listings':[]}
+          (root/'data'/'inventory.json').write_text(json.dumps(community_data))
+          (root/'data'/'inventory-freshness.json').write_text(json.dumps({'verified_at':'2026-11-27T12:00:00Z','verification_status':'complete','held_removals':[]}))
+          (root/'sitemap.xml').write_text('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>')
+          PY
+          python generate_city_experience.py /tmp/jus3d-city-test
+          # Community generator resolves its output relative to its own script.
+          cp generate_community_pages.py /tmp/jus3d-city-test/generate_community_pages.py
+          (cd /tmp/jus3d-city-test && python generate_community_pages.py data/inventory.json)
+      - name: Browser-test desktop and mobile city pages
+        run: |
+          python -m http.server 8765 --directory /tmp/jus3d-city-test >/tmp/jus3d-city-http.log 2>&1 &
+          echo $! >/tmp/jus3d-city-http.pid
+          node tests/city-page-browser-regression.mjs
