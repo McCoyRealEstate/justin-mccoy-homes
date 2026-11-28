@@ -59,6 +59,30 @@ jobs:
                 if(path.startsWith('/communities/')&&path.endsWith('.html')){
                   const cards=await page.locator('.home-card').evaluateAll(cards=>cards.map(c=>{const specs=c.querySelector('.home-specs');return {icons:specs?.querySelectorAll('svg').length,center:specs?getComputedStyle(specs).justifyContent:null,heading:c.querySelector('h3')?.textContent,cta:!!c.querySelector('.property-details-cta'),radius:parseFloat(getComputedStyle(c).borderTopLeftRadius)}}));
                   for(const card of cards){assert.equal(card.icons,3,path+' missing spec icons');assert.equal(card.center,'center',path+' spec alignment');assert.ok(!/Homesite/i.test(card.heading||''),path+' legacy heading');assert.ok(card.cta&&card.radius>=8,path+' card styling');}
+                  if(engine.name()==='chromium'){
+                    for(const width of [768,1024,1280,1440,1920]){
+                      await page.setViewportSize({width,height:900});
+                      const checks=await page.evaluate(()=>{
+                        const hero=document.querySelector('.hero.community-title > .actions');
+                        const row=document.querySelector('.home-card .home-card-top');
+                        if(!row)return {hidden:!hero||getComputedStyle(hero).display==='none',tested:false};
+                        const name=row.querySelector('span'),price=row.querySelector('strong');
+                        const oldName=name.textContent,oldPrice=price.textContent;
+                        try{
+                          name.textContent='Serenity at Peace Creek Reserve';
+                          price.textContent='Price on request';
+                          const r=row.getBoundingClientRect(),n=name.getBoundingClientRect(),p=price.getBoundingClientRect();
+                          return {hidden:!hero||getComputedStyle(hero).display==='none',tested:true,visible:r.width>0,nameWidth:n.width,rowWidth:r.width,priceFits:p.right<=r.right+1&&p.left>=r.left-1&&price.scrollWidth<=price.clientWidth+1};
+                        }finally{name.textContent=oldName;price.textContent=oldPrice;}
+                      });
+                      assert.ok(checks.hidden,path+' legacy desktop banner actions '+width);
+                      if(checks.tested&&checks.visible){
+                        assert.ok(checks.nameWidth>=checks.rowWidth*.8,path+' squeezed community name '+width);
+                        assert.ok(checks.priceFits,path+' price overflow '+width);
+                      }
+                    }
+                    await page.setViewportSize({width:1280,height:900});
+                  }
                   console.log('Community card regression',path,cards.length);
                 }
                 console.log(engine.name(),path,JSON.stringify(result));
