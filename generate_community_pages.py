@@ -117,6 +117,7 @@ for url in [hub]+['https://jus3d.com/communities/'+slug+'.html' for _,_,slug in 
     if url not in existing:
         entry=ET.SubElement(tree.getroot(),ns+'url')
         ET.SubElement(entry,ns+'loc').text=url
+        existing.add(url)
 ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
 tree.write(sitemap,encoding='utf-8',xml_declaration=True)
 print('Generated',len(links),'community guides and updated sitemap')
