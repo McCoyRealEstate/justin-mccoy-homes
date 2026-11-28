@@ -30,8 +30,16 @@ for slug,city in cities.items():
     s=s.replace('<div class="wrap hero-in">','<div class="wrap hero-in"><a class="city-back" href="/">← All Central Florida homes</a>',1)
     assert 'const scope='+json.dumps(city) in s and 'sel.disabled=true' in s and 'https://jus3d.com/areas/'+slug+'.html' in s
     # Restore crawlable community relationships after cloning the homepage.
-    from bs4 import BeautifulSoup
-    from urllib.parse import urlsplit
+    from html.parser import HTMLParser
+    class HeadingParser(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.inside=False; self.parts=[]; self.done=False
+        def handle_starttag(self, tag, attrs):
+            if tag=='h1' and not self.done: self.inside=True
+        def handle_endtag(self, tag):
+            if tag=='h1' and self.inside: self.inside=False; self.done=True
+        def handle_data(self, data):
+            if self.inside: self.parts.append(data)
     feed=json.loads((p/'data/verified-homepage.json').read_text())
     def norm(value):
         return re.sub(r'[^a-z0-9]','',str(value).lower())
@@ -42,10 +50,10 @@ for slug,city in cities.items():
         if not re.fullmatch(r'[a-zA-Z0-9_-]+',ident): continue
         if not (p/'communities'/f'{ident}.html').is_file(): continue
         # Read the verified generated page title rather than assume feed name keys.
-        detail=BeautifulSoup((p/'communities'/f'{ident}.html').read_text(),'html.parser')
-        heading=detail.select_one('h1')
-        if not heading: continue
-        name=heading.get_text(' ',strip=True)
+        detail=HeadingParser()
+        detail.feed((p/'communities'/f'{ident}.html').read_text())
+        name=' '.join(' '.join(detail.parts).split())
+        if not name: continue
         links.append((ident,name))
     if links:
         schema['mentions']=[{'@type':'WebPage','name':name,'url':'https://jus3d.com/communities/'+ident+'.html'} for ident,name in links]
