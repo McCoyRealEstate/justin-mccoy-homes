@@ -1,0 +1,56 @@
+name: Meadow Pointe map research
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/meadow-pointe-map-research.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public community page embedding policy
+        run: |
+          python - <<'PY'
+          import urllib.request,re
+          url='https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe'
+          req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+          with urllib.request.urlopen(req,timeout=30) as r:
+              print('Final URL:',r.url)
+              for k in ['X-Frame-Options','Content-Security-Policy','Content-Type']:
+                  print(k, r.headers.get(k))
+              html=r.read().decode('utf-8','replace')
+          for match in re.findall(r'<iframe[^>]*>|https?[^"\s<>]+\.pdf(?:\?[^"\s<>]*)?',html,re.I)[:30]:
+              print(match[:500])
+          for term in ['community map','sitemap','availability','iframe']:
+              print(term,html.lower().count(term))
+          PY
+      - name: Install browser
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test public map in browser and embedded context
+        run: |
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          url='https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe'
+          with sync_playwright() as p:
+              b=p.chromium.launch()
+              page=b.new_page(viewport={'width':390,'height':844})
+              page.goto(url,wait_until='domcontentloaded',timeout=60000)
+              page.wait_for_timeout(6000)
+              print('Public page title:',page.title())
+              for el in page.get_by_text('Availability',exact=True).all()[:5]:
+                  print('Availability element:',el.evaluate('(e)=>e.outerHTML')[:800])
+              print('Map links:',page.locator('a').evaluate_all("(els)=>els.filter(e=>/map|availability/i.test(e.innerText)).map(e=>[e.innerText,e.href]).slice(0,20)"))
+              page.route('https://jus3d.com/map-research-test',lambda route:route.fulfill(content_type='text/html',body='<iframe src="'+url+'" width="390" height="800"></iframe>'))
+              page.on('console',lambda m:print('Browser:',m.text[:300]) if m.type=='error' else None)
+              page.goto('https://jus3d.com/map-research-test',wait_until='domcontentloaded',timeout=60000)
+              page.wait_for_timeout(8000)
+              for frame in page.frames:
+                  print('Frame:',frame.url)
+                  if 'lennar.com' in frame.url:
+                      print('Embedded title:',frame.title())
+                      print('Embedded availability controls:',frame.get_by_text('Availability',exact=True).count())
+              b.close()
+          PY
