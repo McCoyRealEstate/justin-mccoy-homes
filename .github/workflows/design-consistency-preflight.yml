@@ -58,6 +58,11 @@ jobs:
           new=copy.deepcopy(old)
           new.update(id='qa-lifecycle-community',community='QA Lifecycle Community')
           data['communities'].append(new)
+          # A new community enters public navigation only after confirmed available inventory.
+          available=next(h for h in data['homes'] if h.get('availability') in ('Move-in ready','Under construction'))
+          sample=copy.deepcopy(available)
+          sample.update(community_id=new['id'],community=new['community'],lot='qa-lifecycle-homesite')
+          data['homes'].append(sample)
           fixture=Path('/tmp/lifecycle-inventory.json')
           def generate():
               fixture.write_text(json.dumps(data))
