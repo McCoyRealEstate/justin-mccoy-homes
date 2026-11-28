@@ -29,5 +29,34 @@ for slug,city in cities.items():
     s=s.replace('</head>','<style>.city-back{display:inline-block;color:#d4b477;margin-bottom:12px;font-size:14px}.hero h1{font-size:clamp(36px,7vw,72px)}</style></head>')
     s=s.replace('<div class="wrap hero-in">','<div class="wrap hero-in"><a class="city-back" href="/">← All Central Florida homes</a>',1)
     assert 'const scope='+json.dumps(city) in s and 'sel.disabled=true' in s and 'https://jus3d.com/areas/'+slug+'.html' in s
+    # Restore crawlable community relationships after cloning the homepage.
+    from bs4 import BeautifulSoup
+    from urllib.parse import urlsplit
+    feed=json.loads((p/'data/verified-homepage.json').read_text())
+    def norm(value):
+        return re.sub(r'[^a-z0-9]','',str(value).lower())
+    directory=[c for c in feed['D']['c'] if norm(c.get('city',''))==norm(city)]
+    links=[]
+    for c in directory:
+        ident=str(c.get('id',''))
+        if not re.fullmatch(r'[a-zA-Z0-9_-]+',ident): continue
+        if not (p/'communities'/f'{ident}.html').is_file(): continue
+        # Read the verified generated page title rather than assume feed name keys.
+        detail=BeautifulSoup((p/'communities'/f'{ident}.html').read_text(),'html.parser')
+        heading=detail.select_one('h1')
+        if not heading: continue
+        name=heading.get_text(' ',strip=True)
+        links.append((ident,name))
+    if links:
+        schema['mentions']=[{'@type':'WebPage','name':name,'url':'https://jus3d.com/communities/'+ident+'.html'} for ident,name in links]
+        s=re.sub(r'<script type="application/ld\\+json">.*?</script>',lambda _: '<script type="application/ld+json">'+json.dumps(schema)+'</script>',s,count=1,flags=re.S)
+        # Use the existing footer area and native link styling; no new hero or controls.
+        section='<section class="wrap" aria-label="Lennar communities in '+escape(city)+'"><h2>Lennar communities in '+escape(city)+'</h2><p>Explore community details, floor plans and current availability.</p><p>'+ ' · '.join('<a href="/communities/'+ident+'.html">'+escape(name)+'</a>' for ident,name in links)+'</p></section>'
+        if re.search(r'<footer\\b',s,re.I):
+            s=re.sub(r'<footer\\b',lambda m:section+m.group(),s,count=1,flags=re.I)
+        else:
+            s=s.replace('</body>',section+'</body>',1)
+        assert all('/communities/'+ident+'.html' in s for ident,_ in links)
+        print('Crawlable city community links:',city,len(links))
     file.write_text(s)
     print('Premium city experience:',city)
