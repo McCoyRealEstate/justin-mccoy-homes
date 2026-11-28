@@ -132,6 +132,20 @@ jobs:
               target=p/(rel+'index.html' if not rel or rel.endswith('/') else rel)
               assert target.is_file(),url
           assert '<meta name="description"' in s and 'application/ld+json' in s
+          from bs4 import BeautifulSoup
+          seo=BeautifulSoup(s,'html.parser')
+          assert seo.title.get_text(strip=True)=='Justin McCoy | Lennar Orlando New Home Consultant'
+          assert len(seo.select('link[rel="canonical"]'))==1
+          assert seo.select_one('link[rel="canonical"]')['href']=='https://jus3d.com/'
+          assert not any('noindex' in m.get('content','').lower() for m in seo.select('meta[name="robots"]'))
+          assert len(seo.select('meta[name="description"]'))==1
+          graph=json.loads(seo.select_one('script[type="application/ld+json"]').string)['@graph']
+          person=next(x for x in graph if x['@type']=='Person')
+          website=next(x for x in graph if x['@type']=='WebSite')
+          assert person['name']=='Justin McCoy' and person['jobTitle']=='New Home Consultant'
+          assert website['publisher']['@id']==person['@id']
+          assert person['worksFor']['name']=='Lennar'
+          print('Canonical homepage SEO and professional identity verified')
           assert (p/'og-preview.png').is_file()
           PY
           sudo apt-get update -qq && sudo apt-get install -y librsvg2-bin
