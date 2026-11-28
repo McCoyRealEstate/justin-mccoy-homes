@@ -2,6 +2,15 @@ name: Design consistency preflight
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/design-consistency-preflight.yml'
+      - 'homepage-v2-preview.html'
+      - 'generate_community_pages.py'
+      - 'assets/search-interface.css'
+      - 'assets/property-details.css'
+      - 'realtors/index.html'
   workflow_dispatch:
 permissions:
   contents: read
@@ -46,6 +55,33 @@ jobs:
               assert soup.select_one('link[href="/assets/utility-design.css"]'), p
           assert Path('assets/utility-design.css').is_file()
           print('Verified',len(data['communities']),'community pages and four utility pages')
+          PY
+      - name: Verify approved shared layout and availability labels
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          home=BeautifulSoup(Path('homepage-v2-preview.html').read_text(),'html.parser')
+          for heading in ('homes-heading','communities-heading'):
+              assert home.select_one('#'+heading), heading
+          assert 'flex-direction:row;flex-wrap:wrap;align-items:baseline' in str(home)
+          realtor=BeautifulSoup(Path('realtors/index.html').read_text(),'html.parser')
+          assert realtor.select_one('main .grid .card h3').get_text(strip=True)=='Build a Buyer Collection'
+          css=Path('assets/search-interface.css').read_text()
+          assert 'order:-1;margin-bottom:18px' in css
+          assert '.hero.community-photo-hero>.community-location' in css
+          data=json.loads(Path('/tmp/community-inventory.json').read_text())
+          checked=0
+          for c in data['communities']:
+              page=BeautifulSoup((Path('communities')/(c['id']+'.html')).read_text(),'html.parser')
+              status=page.select_one('#filter-status')
+              if status:
+                  assert status.select_one('option[value="upcoming"]').get_text(strip=True)=='Under Construction', c['id']
+                  assert page.select_one('link[href="/assets/search-interface.css"]'), c['id']
+                  checked+=1
+          assert checked>0
+          print('Approved source layouts and availability labels verified across',checked,'active community pages')
           PY
       - name: Exercise community lifecycle with isolated synthetic inventory
         run: |
