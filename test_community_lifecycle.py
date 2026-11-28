@@ -27,7 +27,13 @@ with tempfile.TemporaryDirectory() as tmp:
     assert 'href="/communities/waterlin.html"' in empty
     hub=root/'communities/index.html'
     assert 'href="/communities/bridgewalk.html"' not in hub.read_text()
-    assert 'https://jus3d.com/communities/bridgewalk.html' in (root/'sitemap.xml').read_text()
+    assert (root/'sitemap.xml').read_text().count('https://jus3d.com/communities/bridgewalk.html')==1
+    coming_soon=home(bridge,'9')
+    coming_soon['availability']='Coming soon'
+    coming=render([bridge,nearby],[coming_soon,home(nearby,'2')])
+    assert 'Still interested in Bridgewalk?' in coming
+    assert 'href="/communities/bridgewalk.html"' not in hub.read_text()
+    assert (root/'sitemap.xml').read_text().count('https://jus3d.com/communities/bridgewalk.html')==1
     removed=render([nearby],[home(nearby,'2')])
     assert 'Still interested in Bridgewalk?' in removed and 'not currently listed in our active directory' in removed
     assert 'href="/communities/bridgewalk.html"' not in hub.read_text()
