@@ -14,6 +14,13 @@ for slug,city in cities.items():
     for pattern in [r'<title>.*?</title>',r'<meta name="description"[^>]*>',r'<link rel="canonical"[^>]*>',r'<meta property="og:title"[^>]*>',r'<meta property="og:description"[^>]*>',r'<meta property="og:url"[^>]*>',r'<script type="application/ld\+json">.*?</script>']:
         m=re.search(pattern,old,re.S)
         if m:s=re.sub(pattern,lambda _:m.group(),s,count=1,flags=re.S)
+    # Rebuild route-specific identity from the city metadata, including older generated pages.
+    from html import unescape
+    title=unescape(re.search(r'<title>(.*?)</title>',s,re.S).group(1))
+    desc=unescape(re.search(r'<meta name="description" content="([^"]*)"',s).group(1))
+    url='https://jus3d.com/areas/'+slug+'.html'
+    schema={"@context":"https://schema.org","@type":"WebPage","@id":url+"#webpage","name":title,"description":desc,"url":url,"isPartOf":{"@type":"WebSite","@id":"https://jus3d.com/#website","url":"https://jus3d.com/"},"publisher":{"@type":"Person","@id":"https://jus3d.com/#justin-mccoy","name":"Justin McCoy","jobTitle":"New Home Consultant","url":"https://jus3d.com/","worksFor":{"@type":"Organization","name":"Lennar","url":"https://www.lennar.com/"}}}
+    s=re.sub(r'<script type="application/ld\+json">.*?</script>',lambda _: '<script type="application/ld+json">'+json.dumps(schema)+'</script>',s,count=1,flags=re.S)
     s=s.replace('<h1>Find a home <em>you’ll love.</em></h1>','<h1>'+escape(city)+', Florida</h1>')
     s=s.replace('New construction homes across Central Florida.','New construction homes in '+escape(city)+', Florida.')
     s=s.replace('homes=data;verified=meta.verified;', 'const scope='+json.dumps(city)+';data=data.filter(h=>normalizeCity(h.city)===normalizeCity(scope));meta={...meta,directory:(meta.directory||[]).filter(c=>normalizeCity(c.city)===normalizeCity(scope))};homes=data;verified=meta.verified;')
