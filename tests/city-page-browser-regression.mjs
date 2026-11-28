@@ -18,8 +18,8 @@ try {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(origin + '/areas/' + slug + '.html', {waitUntil: 'domcontentloaded'});
-      await page.waitForFunction(() => /^\\d+ communities$/.test(document.querySelector('#community-count')?.textContent||''), {timeout:30000});
-      assert.match(await page.locator('h1').first().innerText(), new RegExp(city.replace('.', '\\.'), 'i'));
+      await page.waitForFunction(() => /^\d+ communities$/.test(document.querySelector('#community-count')?.textContent||''), {timeout:30000});
+      assert.match(await page.locator('h1').first().innerText(), new RegExp(city.replace('.', '\.'), 'i'));
       assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'), 'https://jus3d.com/areas/' + slug + '.html');
       assert.equal(await page.locator('#city').inputValue(),city);
       assert.equal(await page.locator('#community-city').inputValue(),city);
@@ -41,7 +41,7 @@ try {
 
     const page=await browser.newPage({viewport});
     await page.goto(origin + '/', {waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>/^\\d+ communities$/.test(document.querySelector('#community-count')?.textContent||''));
+    await page.waitForFunction(()=>/^\d+ communities$/.test(document.querySelector('#community-count')?.textContent||''));
     assert.equal(await page.locator('#community-count').innerText(),'5 communities');
     assert.equal(await page.locator('#community-results a[href="/communities/villa-mar.html"]').count(),0);
     assert.equal(await page.request.get(origin+'/communities/villa-mar.html').then(r=>r.ok()),true);
