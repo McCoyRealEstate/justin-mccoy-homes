@@ -18,3 +18,11 @@ body.jus-utility{background:var(--jm-utility-bg);color:var(--jm-utility-ink);fon
 .jus-utility button:focus-visible,.jus-utility a:focus-visible,.jus-utility select:focus-visible{outline:2px solid #a68142;outline-offset:3px}
 .jus-utility #slots,.jus-utility .panel button{border-radius:8px}
 @media(max-width:620px){.jus-utility .hero{padding:24px 0 28px}.jus-utility .card,.jus-utility .panel{padding:16px}}
+
+/* Compact utility hero standard: omit redundant eyebrow markup; retain meaningful location labels on community pages. */
+.hero.compact-hero{padding:32px 0;background:var(--jm-utility-hero);color:white}
+.hero.compact-hero .hero-in{padding:0}
+.hero.compact-hero h1{font:400 clamp(30px,5.5vw,60px)/1.12 var(--jm-font-heading);margin:0 0 10px;max-width:none;text-wrap:balance}
+.hero.compact-hero h1 em{color:var(--jm-gold);font-style:normal}
+.hero.compact-hero p{margin:0;line-height:1.5}
+@media(max-width:620px){.hero.compact-hero{padding:24px 0}.hero.compact-hero h1{font-size:clamp(25px,7.4vw,40px)}}
