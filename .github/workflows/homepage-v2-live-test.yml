@@ -48,6 +48,7 @@ jobs:
             await page.waitForFunction(expected=>/^\d+ homes$/.test(document.querySelector('#count')?.textContent||'')&&document.querySelector('#inventory-checked')?.textContent.includes('Last updated')&&!document.querySelector('#inventory-checked')?.hidden,expected);
             console.log('Inventory freshness display verified: '+expected);
             const sort=page.locator('#sort'),fav=page.locator('#favorites-toggle');
+            if(!/^Homesite #\d{4}$/.test(await page.locator('#results .homesite-label').first().innerText()))throw Error('Missing four-digit homesite label');
             await sort.scrollIntoViewIfNeeded();
             const a=await sort.boundingBox(),b=await fav.boundingBox();
             if(!a||!b||a.x+a.width>b.x+1||Math.abs(a.y-b.y)>3||Math.abs(a.height-b.height)>3)throw Error('Sort/favorites overlap or misalignment');
@@ -80,6 +81,7 @@ jobs:
               const slug=link.split('/').pop().replace(/\.html$/,'');
               const expectedHomes=inventory.D.h.filter(h=>h.cm===slug).length;
               const cards=community.locator('.home-card');
+              if(expectedHomes>0&&await cards.locator('.homesite-label').count()!==await cards.count())throw Error('Missing community homesite labels');
               if(expectedHomes===0){
                 if(await cards.count()!==0||!await community.getByRole('heading',{name:/Still interested in/}).count()||!await community.getByRole('link',{name:'Inquire About Future Availability'}).count())throw Error('Zero inventory fallback missing '+link);
                 console.log('ZERO INVENTORY FALLBACK VERIFIED '+link);
