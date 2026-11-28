@@ -146,7 +146,7 @@ jobs:
                 await page.locator('#favorites-toggle').click();
                 for(let n=2;n>=0;n--){
                   await page.locator('#results [data-save][aria-pressed="true"]').first().click();
-                  await page.waitForFunction(n=>document.querySelector('#favorites-toggle')?.textContent.includes('('+n+')'),n);
+                  await page.waitForFunction(n=>JSON.parse(localStorage.getItem('jm-favorites-v1')||'[]').length===n&&document.querySelector('#favorites-toggle')?.textContent.trim()==='All Homes',n);
                 }
                 await page.reload();
                 await page.waitForFunction(()=>document.querySelector('#favorites-toggle')?.textContent.includes('(0)'));
