@@ -81,7 +81,7 @@ jobs:
               const slug=link.split('/').pop().replace(/\.html$/,'');
               const expectedHomes=inventory.D.h.filter(h=>h.cm===slug).length;
               const cards=community.locator('.home-card');
-              if(expectedHomes>0&&await cards.locator('.homesite-label').count()!==await cards.count())throw Error('Missing community homesite labels');
+              if(expectedHomes>0){const missing=await cards.evaluateAll(cs=>cs.filter(c=>!c.querySelector('.homesite-label')).map(c=>c.dataset.homesite));if(missing.length)throw Error('Missing community homesite labels '+link+' IDs '+missing.join(','));}
               if(expectedHomes===0){
                 if(await cards.count()!==0||!await community.getByRole('heading',{name:/Still interested in/}).count()||!await community.getByRole('link',{name:'Inquire About Future Availability'}).count())throw Error('Zero inventory fallback missing '+link);
                 console.log('ZERO INVENTORY FALLBACK VERIFIED '+link);
