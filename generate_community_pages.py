@@ -1,3 +1,4 @@
+import re
 #!/usr/bin/env python3
 """Create priority community landing pages from the same verified city inventory.
 Run AFTER generate_local_pages.py. No unverified prices or availability claims. Keep previews in sync with generator.
@@ -55,8 +56,76 @@ for name,city,slug in targets:
         status_class={'Move-in ready':'ready','Under construction':'building','Coming soon':'soon'}.get(r.get('availability'),'unknown')
         status_markup='<p class="home-status '+status_class+'">'+esc(r.get('availability','Confirm availability'))+'</p>'
         photo_credit=('<p class="fallback-credit">'+esc(r['photo_label'])+'</p>') if r.get('photo_label') not in (None,'Listing photo') else ''
-        lot_display=str(r.get('lot') or '').strip()[-4:]
-        if lot_display.isdigit(): lot_display=lot_display.zfill(4)
+        lot_match=re.search(r'\d+
+        homesite_markup=('<p class="homesite-label" style="font-size:13px;font-weight:600;color:#526174;margin:4px 0 6px">Homesite #'+esc(lot_display)+'</p>') if len(lot_display)==4 and lot_display.isdigit() else ''
+        home_cards+='<article class="home-card" data-homesite="'+esc(r.get('lot',''))+'">'+photo_markup+status_markup+photo_credit+'<div class="home-card-top"><span>'+esc(str(r.get('community','')).split(' - ')[-1])+'</span><strong>'+price+'</strong></div><h3>'+esc(plan)+'</h3>'+homesite_markup+'<p class="home-address">'+esc(r.get('address','Address on request'))+', '+esc(city)+', FL</p><p class="home-specs card-spec-icons"><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18V8 M21 18v-6H3 M3 15h18 M7 12V8h5v4 M12 12V8h6v4"/></svg>'+esc(r.get('beds','—'))+' Beds</span><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18v3a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z M6 12V5a2 2 0 0 1 4 0 M7 20v2 M17 20v2"/></svg>'+esc(r.get('baths','—'))+' Baths</span><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l4-4 14 14-4 4z M8 8l2-2 M12 12l2-2 M16 16l2-2"/></svg>'+sqft+' Sq Ft</span></p><a class="property-details-cta" href="'+esc(inquiry)+'">Property Details →</a></article>'
+    filter_ui='<div class="inventory-controls community-search jm-search-panel"><label class="community-search-query">Search<input id="filter-query" type="search" placeholder="Floor plan, address or homesite"></label><label>Floor Plan<select id="filter-plan"><option value="">All Floor Plans</option></select></label><label>Availability<select id="filter-status"><option value="">All Statuses</option><option value="ready">Move-In Ready</option><option value="upcoming">Upcoming Completion</option></select></label><label>Max Price<select id="filter-price"><option value="">Any Price</option><option value="400000">Up To $400,000</option><option value="450000">Up To $450,000</option><option value="500000">Up To $500,000</option><option value="600000">Up To $600,000</option><option value="750000">Up To $750,000</option><option value="1000000">Up To $1,000,000</option></select></label><button type="button" id="community-view-homes">View Homes</button></div><p class="inventory-count" id="inventory-count" aria-live="polite"></p>'
+    home_section='<section class="inventory-section"><h2>Available Homes</h2>'+filter_ui+'<div class="home-grid">'+home_cards+'</div></section>'
+    if not any(h.get('availability') in ('Move-in ready','Under construction') for h in homes):
+        counts={c['id']:sum(h.get('community_id')==c['id'] and h.get('availability') in ('Move-in ready','Under construction') for h in data.get('homes',[])) for c in directory}
+        alternatives=sorted((c for c in directory if c['id']!=slug and counts[c['id']]>0),key=lambda c:(proximity(city,c['city']),-counts[c['id']],c['community']))[:3]
+        home_section='<section class="inventory-section"><h2>Still interested in '+esc(name)+'?</h2><p>There are currently no homes listed in this community. Contact me for future availability, or explore nearby Lennar communities.</p><p><a class="button" href="mailto:Justin.McCoy@Lennar.com?subject='+quote('Future availability - '+name)+'">Inquire About Future Availability</a></p></section><section class="content"><h2>Explore Nearby Communities</h2><div class="cards community-directory">'+''.join('<article><h3><a href="/communities/'+esc(c['id'])+'.html">'+esc(c['community'])+'</a></h3><p>'+esc(c['city'])+' · '+str(counts[c['id']])+' available homes</p></article>' for c in alternatives)+'</div></section>'
+    if monument:
+        body=body.replace('<section class="hero community-title">','<section class="hero community-title community-photo-hero"><img class="community-hero-image" src="'+esc(monument)+'" alt="'+esc(name)+' community entrance" decoding="async" fetchpriority="high">',1)
+    home_section=home_section.replace('class="inventory-section"','class="inventory-section" id="available-homes"',1)
+    body=body.replace('<section class="advisor">','<main class="content inventory-first">'+home_section+'</main><section class="advisor">',1)
+    # Move advisor and supporting information below the inventory; keep SEO content crawlable.
+    body=body.replace('href="/">View Available Homes','href="#available-homes">View Available Homes',1)
+    # Community pages prioritize property-specific information; no generic buyer services block.
+    body=body.replace('Let’s Find Your New Home in '+name,'Schedule a Private Tour')
+    body=body.replace('<p>We build your home. You build your legacy.</p>','<p class="closing-tagline">We build your home. You build your legacy.</p>')
+    body=body.replace('>Schedule a Tour</a>', '>Schedule Your Private Tour</a>')
+    body=body.replace('>View Available Homes →</a>', '>View Available Homes →</a><a class="button alt" href="mailto:Justin.McCoy@Lennar.com?subject='+quote('Digital Sales Presentation Request - '+name)+'">Request a Digital Sales Presentation →</a>',1)
+    body=body.replace('>View All Inventory</a>', '>View All Inventory</a><a class="button alt" href="mailto:Justin.McCoy@Lennar.com?subject=Digital%20Sales%20Presentation%20Request">Request a Digital Sales Presentation →</a>')
+    body+='<div class="mobile-tour-bar"><a href="tel:+14075725398">Schedule a Tour</a><a href="mailto:Justin.McCoy@Lennar.com?subject=Digital%20Sales%20Presentation%20Request">Digital Sales Presentation</a></div>'
+    body+='''<script>(function(){const grid=document.querySelector('.home-grid');if(!grid)return;const cards=Array.from(grid.querySelectorAll('.home-card'));const plan=document.getElementById('filter-plan'),status=document.getElementById('filter-status'),price=document.getElementById('filter-price'),count=document.getElementById('inventory-count');if(!plan||!status||!price)return;const query=document.getElementById('filter-query'),view=document.getElementById('community-view-homes');const plans=[...new Set(cards.map(c=>c.querySelector('h3')?.childNodes[0]?.textContent.trim()).filter(Boolean))].sort();plans.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;plan.appendChild(o)});const viewport=matchMedia('(max-width:700px)'),batch=()=>viewport.matches?10:15;let limit=batch();const more=document.createElement('button');more.type='button';more.className='community-more-homes';more.style.cssText='display:block;margin:18px auto;padding:13px 24px;background:#102d49;color:white;border:0;border-radius:4px;font:600 15px system-ui;cursor:pointer';grid.after(more);more.addEventListener('click',()=>{limit+=batch();update()});function update(){let n=0;cards.forEach(c=>{const name=c.querySelector('h3')?.childNodes[0]?.textContent.trim()||'';const amount=Number((c.querySelector('.home-card-top strong')?.textContent||'').replace(/[^0-9]/g,''));const ready=(c.querySelector('.home-status')?.textContent||'').toLowerCase().includes('move-in ready');const search=(query?.value||'').trim().toLowerCase();const show=(!search||(name+' '+(c.querySelector('.home-address')?.textContent||'')+' '+(c.querySelector('.homesite-label')?.textContent||'')+' '+(c.dataset.homesite||'')).toLowerCase().includes(search))&&(!plan.value||name===plan.value)&&(!price.value||(amount>0&&amount<=Number(price.value)))&&(!status.value||(status.value==='ready'?ready:!ready));if(show)n++;c.hidden=!show||n>limit;c.style.display=c.hidden?'none':''});count.textContent=Math.min(n,limit)+' of '+n+' homes shown';more.hidden=n<=limit;more.style.display=more.hidden?'none':'block';more.textContent='Show More Homes ('+Math.min(batch(),Math.max(0,n-limit))+' more)'}[plan,status,price].forEach(e=>e.addEventListener('change',()=>{limit=batch();update()}));query?.addEventListener('input',()=>{limit=batch();update()});view?.addEventListener('click',()=>{limit=batch();update();count.scrollIntoView({block:'start',behavior:'smooth'})});viewport.addEventListener('change',()=>{limit=batch();update()});update()})();</script>'''
+    if name=='Meadow Pointe':
+        body=body.replace('<div class="cards">', '<div class="location-card"><div><div class="location-label">📍 Visit Our Welcome Home Center</div><div class="location-address">929 Tundra Loop<br>Groveland, FL 34736</div></div><a class="location-link" href="https://www.google.com/maps/search/?api=1&amp;query=929%20Tundra%20Loop%2C%20Groveland%2C%20FL%2034736" target="_blank" rel="noopener noreferrer">Get Directions →</a></div><div class="cards">',1)
+    (out/(slug+'.html')).write_text(render(title,desc,url,body),encoding='utf-8')
+    if any(h.get('availability') in ('Move-in ready','Under construction') for h in homes):
+        links.append((name,city,slug,url))
+# Persist the last verified directory so removed communities retain useful landing pages.
+registry_path=ROOT/'data/community-seo-registry.json'
+if directory:
+    registry=json.loads(registry_path.read_text()) if registry_path.exists() else {}
+    active={c['id']:c for c in directory}
+    registry.update(active)
+    for slug,c in registry.items():
+        if slug in active:continue
+        name,city=c['community'],c['city']
+        counts={a['id']:sum(h.get('community_id')==a['id'] and h.get('availability') in ('Move-in ready','Under construction') for h in data.get('homes',[])) for a in directory}
+        alternatives=sorted((a for a in directory if counts[a['id']]>0),key=lambda a:(proximity(city,a['city']),-counts[a['id']],a['community']))[:3]
+        body='<section class="hero community-title"><div class="eyebrow">Lennar Communities</div><h1>Still interested in '+esc(name)+'?</h1><p class="community-location"><span aria-hidden="true">&#9679;</span> '+esc(city)+', Florida</p><p>This community is not currently listed in our active directory. Contact me to confirm its status or explore nearby Lennar communities.</p><p><a class="button" href="mailto:Justin.McCoy@Lennar.com?subject='+quote('Community availability - '+name)+'">Inquire About Availability</a></p></section><section class="content"><h2>Explore Nearby Communities</h2><div class="cards community-directory">'+''.join('<article><h3><a href="/communities/'+esc(a['id'])+'.html">'+esc(a['community'])+'</a></h3><p>'+esc(a['city'])+' · '+str(counts[a['id']])+' available homes</p></article>' for a in alternatives)+'</div><p><a href="/">Browse current inventory</a></p></section>'
+        url='https://jus3d.com/communities/'+slug+'.html'
+        (out/(slug+'.html')).write_text(render(name+' | Community Availability Update',name+' availability update and nearby new construction alternatives.',url,body),encoding='utf-8')
+    registry_path.write_text(json.dumps(registry,indent=2,sort_keys=True))
+hub='https://jus3d.com/communities/'
+body='<section class="hero"><div class="eyebrow">Lennar Orlando</div><h1>Explore Our Communities</h1><p>Find your next home in Central Florida.</p></section><section class="content"><div class="cards community-directory">'+''.join('<article><h2><a href="/communities/'+esc(slug)+'.html">'+esc(name)+'</a></h2><p>'+esc(city)+', Florida</p><a class="button" href="/communities/'+esc(slug)+'.html">Explore Community →</a></article>' for name,city,slug,_ in links)+'</div><p><a href="/areas/">Browse by city</a> · <a href="/#homes">Search all homes</a></p></section>'
+(out/'index.html').write_text(render('Featured Lennar Communities in Central Florida | Justin McCoy | New Home Consultant - Lennar Homes - Orlando Division','Explore Lennar communities across Central Florida with Justin McCoy.',hub,body),encoding='utf-8')
+for name,city,slug,_ in links:
+    path=ROOT/'areas'/(cityslug(city)+'.html')
+    if not path.exists():continue
+    html=path.read_text()
+    needle='<h3>'+esc(name)
+    # A city page may list a collection suffix; insert a direct community link ahead of the first matching collection.
+    i=html.find(needle)
+    if i>=0:
+        html=html[:i]+'<p><a href="/communities/'+slug+'.html">Explore '+esc(name)+'</a></p>'+html[i:]
+        path.write_text(html)
+sitemap=ROOT/'sitemap.xml'
+tree=ET.parse(sitemap)
+ns='{http://www.sitemaps.org/schemas/sitemap/0.9}'
+existing={n.text for n in tree.getroot().iter(ns+'loc')}
+for url in [hub]+['https://jus3d.com/communities/'+slug+'.html' for _,_,slug in targets]+(['https://jus3d.com/communities/'+slug+'.html' for slug in registry] if directory else []):
+    if url not in existing:
+        entry=ET.SubElement(tree.getroot(),ns+'url')
+        ET.SubElement(entry,ns+'loc').text=url
+        existing.add(url)
+ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
+tree.write(sitemap,encoding='utf-8',xml_declaration=True)
+print('Generated',len(links),'community guides and updated sitemap')
+,str(r.get('lot') or '').strip())
+        lot_display=lot_match.group()[-4:].zfill(4) if lot_match else ''
         homesite_markup=('<p class="homesite-label" style="font-size:13px;font-weight:600;color:#526174;margin:4px 0 6px">Homesite #'+esc(lot_display)+'</p>') if len(lot_display)==4 and lot_display.isdigit() else ''
         home_cards+='<article class="home-card" data-homesite="'+esc(r.get('lot',''))+'">'+photo_markup+status_markup+photo_credit+'<div class="home-card-top"><span>'+esc(str(r.get('community','')).split(' - ')[-1])+'</span><strong>'+price+'</strong></div><h3>'+esc(plan)+'</h3>'+homesite_markup+'<p class="home-address">'+esc(r.get('address','Address on request'))+', '+esc(city)+', FL</p><p class="home-specs card-spec-icons"><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18V8 M21 18v-6H3 M3 15h18 M7 12V8h5v4 M12 12V8h6v4"/></svg>'+esc(r.get('beds','—'))+' Beds</span><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18v3a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z M6 12V5a2 2 0 0 1 4 0 M7 20v2 M17 20v2"/></svg>'+esc(r.get('baths','—'))+' Baths</span><span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l4-4 14 14-4 4z M8 8l2-2 M12 12l2-2 M16 16l2-2"/></svg>'+sqft+' Sq Ft</span></p><a class="property-details-cta" href="'+esc(inquiry)+'">Property Details →</a></article>'
     filter_ui='<div class="inventory-controls community-search jm-search-panel"><label class="community-search-query">Search<input id="filter-query" type="search" placeholder="Floor plan, address or homesite"></label><label>Floor Plan<select id="filter-plan"><option value="">All Floor Plans</option></select></label><label>Availability<select id="filter-status"><option value="">All Statuses</option><option value="ready">Move-In Ready</option><option value="upcoming">Upcoming Completion</option></select></label><label>Max Price<select id="filter-price"><option value="">Any Price</option><option value="400000">Up To $400,000</option><option value="450000">Up To $450,000</option><option value="500000">Up To $500,000</option><option value="600000">Up To $600,000</option><option value="750000">Up To $750,000</option><option value="1000000">Up To $1,000,000</option></select></label><button type="button" id="community-view-homes">View Homes</button></div><p class="inventory-count" id="inventory-count" aria-live="polite"></p>'
