@@ -13,3 +13,6 @@
 
 /* Keep regular property dialogs neutral without changing comparison controls. */
 #detailbody .property-tour-launch,#community-property-detail .cp-body .property-tour-launch{display:grid!important;grid-template-columns:20px minmax(0,1fr) 20px!important;align-items:center!important;gap:10px!important;min-height:46px!important;padding:12px!important;border:1px solid #e1e3e5!important;border-radius:9px!important;font-weight:500!important;font-size:16px!important;line-height:1.4!important;box-sizing:border-box!important}
+
+/* Restore navy share and compare actions in regular property dialogs only. */
+#detailbody .share-property,#detailbody a[href^="/compare/"],#community-property-detail .cp-body .share-property,#community-property-detail .cp-body a[href^="/compare/"]{background:#10263e!important;color:#fff!important;border-color:#10263e!important}
