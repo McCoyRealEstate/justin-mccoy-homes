@@ -1,0 +1,27 @@
+name: Meadow Pointe map research
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/meadow-pointe-map-research.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public community page embedding policy
+        run: |
+          python - <<'PY'
+          import urllib.request,re
+          url='https://www.lennar.com/new-homes/florida/orlando/groveland/meadow-pointe'
+          req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+          with urllib.request.urlopen(req,timeout=30) as r:
+              print('Final URL:',r.url)
+              for k in ['X-Frame-Options','Content-Security-Policy','Content-Type']:
+                  print(k, r.headers.get(k))
+              html=r.read().decode('utf-8','replace')
+          for match in re.findall(r'<iframe[^>]*>|https?[^"\s<>]+\.pdf(?:\?[^"\s<>]*)?',html,re.I)[:30]:
+              print(match[:500])
+          for term in ['community map','sitemap','availability','iframe']:
+              print(term,html.lower().count(term))
+          PY
