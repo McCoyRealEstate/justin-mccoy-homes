@@ -14,5 +14,8 @@
 /* Keep regular property dialogs neutral without changing comparison controls. */
 #detailbody .property-tour-launch,#community-property-detail .cp-body .property-tour-launch{display:grid!important;grid-template-columns:20px minmax(0,1fr) 20px!important;align-items:center!important;gap:10px!important;min-height:46px!important;padding:12px!important;border:1px solid #e1e3e5!important;border-radius:9px!important;font-weight:500!important;font-size:16px!important;line-height:1.4!important;box-sizing:border-box!important}
 
-/* Restore navy share and compare actions in regular property dialogs only. */
-#detailbody .share-property,#detailbody a[href^="/compare/"],#community-property-detail .cp-body .share-property,#community-property-detail .cp-body a[href^="/compare/"]{background:#10263e!important;color:#fff!important;border-color:#10263e!important}
+/* Compact utility actions and two conversion buttons in regular property dialogs. */
+#detailbody .share-property,#detailbody a[href^="/compare/"],#community-property-detail .cp-body .share-property,#community-property-detail .cp-body a[href^="/compare/"]{background:transparent!important;color:#10263e!important;border:0!important;box-shadow:none!important;font-size:14px!important;min-height:44px!important;padding:8px!important}
+#detailbody .detail-actions,#community-property-detail .cp-actions{grid-template-columns:minmax(0,1fr)!important;gap:8px!important;margin:10px 0 12px!important}
+#detailbody .detail-actions a[href^="tel:"],#community-property-detail .cp-actions a[href^="tel:"]{display:none!important}
+#detailbody .detail-actions a,#community-property-detail .cp-actions a{grid-column:1/-1!important}
