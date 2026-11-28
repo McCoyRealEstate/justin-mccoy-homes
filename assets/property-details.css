@@ -10,3 +10,6 @@
 #detailbody .homesite-label,#community-property-detail .cp-body .homesite-label{padding-inline:8px!important;box-sizing:border-box;margin:0 0 5px!important;font-size:13px!important;line-height:1.4!important;color:#526174;font-weight:600}
 
 .property-tour-launch{border:1px solid #bfa16b;border-radius:6px;font-weight:700;min-height:46px;padding:12px 14px;grid-template-columns:20px minmax(0,1fr) 20px}.property-tour-launch>span:last-child{justify-self:end;margin-left:auto}
+
+/* Match the surrounding controls in each property dialog context. */
+#detailbody .property-tour-launch,#community-property-detail .cp-body .property-tour-launch{display:grid!important;grid-template-columns:20px minmax(0,1fr) 20px!important;align-items:center!important;gap:10px!important;min-height:46px!important;padding:12px!important;border:1px solid #e1e3e5!important;border-radius:9px!important;font-weight:500!important;font-size:16px!important;line-height:1.4!important;box-sizing:border-box!important}
